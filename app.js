@@ -340,27 +340,30 @@
     }
   }
 
-  function playAlarm() {
+  function playFourSecondAlarm() {
     try {
       prepareAudio();
       if (!alarmContext || alarmContext.state !== "running") return;
 
       const start = alarmContext.currentTime;
-      [0, 0.22, 0.44].forEach((offset) => {
-        const oscillator = alarmContext.createOscillator();
-        const gain = alarmContext.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(740, start + offset);
-        gain.gain.setValueAtTime(0.0001, start + offset);
-        gain.gain.exponentialRampToValueAtTime(0.18, start + offset + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.16);
-        oscillator.connect(gain).connect(alarmContext.destination);
-        oscillator.start(start + offset);
-        oscillator.stop(start + offset + 0.17);
-      });
+      const oscillator = alarmContext.createOscillator();
+      const gain = alarmContext.createGain();
+      oscillator.type = "square";
+      oscillator.frequency.setValueAtTime(880, start);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.16, start + 0.03);
+      gain.gain.setValueAtTime(0.16, start + 3.85);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 4);
+      oscillator.connect(gain).connect(alarmContext.destination);
+      oscillator.start(start);
+      oscillator.stop(start + 4);
     } catch {
       // No afecta el registro ni el cambio de fase si el audio no está disponible.
     }
+  }
+
+  function playAlarm() {
+    playFourSecondAlarm();
   }
 
   function openApp(username) {
