@@ -221,6 +221,17 @@ input:focus {
   background: rgba(88, 214, 255, 0.09);
 }
 
+.button-finish {
+  color: #d8efff;
+  border-color: rgba(88, 214, 255, 0.38);
+  background: rgba(88, 214, 255, 0.1);
+}
+
+.button-finish:hover {
+  border-color: var(--cyan);
+  background: rgba(88, 214, 255, 0.18);
+}
+
 .button-full {
   width: 100%;
   margin-top: 3px;
@@ -517,7 +528,7 @@ input:disabled {
   margin-top: 22px;
 }
 
-.timer-actions .button:first-child {
+.timer-actions .button {
   flex: 1;
 }
 

@@ -33,6 +33,7 @@
     durationInput: document.querySelector("#duration-input"),
     startButton: document.querySelector("#start-button"),
     cancelButton: document.querySelector("#cancel-button"),
+    endButton: document.querySelector("#end-button"),
     timerMessage: document.querySelector("#timer-message"),
     statsUpdated: document.querySelector("#stats-updated"),
     notice: document.querySelector("#completion-notice"),
@@ -111,7 +112,7 @@
   }
 
   function isValidRecord(record) {
-    return record && typeof record.id === "string" && Number.isFinite(record.completedAt) && validMinutes(record.minutes);
+    return record && typeof record.id === "string" && Number.isFinite(record.completedAt) && Number.isFinite(record.minutes) && record.minutes > 0;
   }
 
   function saveRecords(records) {
@@ -143,7 +144,8 @@
   }
 
   function minutesDetail(minutes) {
-    return `${minutes} ${minutes === 1 ? "minuto" : "minutos"} completados`;
+    const displayedMinutes = minutes.toLocaleString("es", { maximumFractionDigits: 2 });
+    return `${displayedMinutes} ${minutes === 1 ? "minuto" : "minutos"} completados`;
   }
 
   function sessionId() {
@@ -186,6 +188,7 @@
     elements.durationInput.value = timer.running ? timer.durationMinutes : configuredMinutes;
     elements.startButton.hidden = Boolean(timer.running);
     elements.cancelButton.hidden = !timer.running;
+    elements.endButton.hidden = !timer.running;
     elements.startButton.innerHTML = isFocus ? 'Iniciar estudio <span aria-hidden="true">→</span>' : 'Iniciar descanso <span aria-hidden="true">→</span>';
     elements.timerMessage.textContent = timer.running
       ? isFocus
@@ -235,6 +238,34 @@
     updateTimerView();
   }
 
+  function finishCurrentTimer() {
+    const timer = getTimer();
+    if (!timer.running) return;
+
+    if (timer.mode === "break") {
+      saveTimer({ mode: "focus", running: false });
+      stopTickerIfIdle();
+      updateTimerView();
+      showNotice("Descanso terminado", "Puedes comenzar una nueva sesión de estudio cuando quieras.", "✓");
+      return;
+    }
+
+    const startedAt = timer.endTime - timer.durationMinutes * 60_000;
+    const minutesElapsed = Math.max(0, (Date.now() - startedAt) / 60_000);
+    if (minutesElapsed > 0) recordEndedFocus(timer, minutesElapsed);
+
+    const nextMode = minutesElapsed >= 15 ? "break" : "focus";
+    saveTimer({ mode: nextMode, running: false });
+    stopTickerIfIdle();
+    updateTimerView();
+    updateStatistics();
+    showNotice(
+      "Sesión terminada",
+      `${minutesElapsed.toLocaleString("es", { maximumFractionDigits: 2 })} minutos añadidos a tus estadísticas.`,
+      "✓"
+    );
+  }
+
   function completeTimer(timer = getTimer()) {
     if (!timer.running || !Number.isFinite(timer.endTime)) return;
 
@@ -263,6 +294,18 @@
       minutes: timer.durationMinutes,
       // La fecha real de finalización se conserva incluso si la pestaña se abrió después.
       completedAt: timer.endTime
+    });
+    saveRecords(records);
+  }
+
+  function recordEndedFocus(timer, minutesElapsed) {
+    const records = getRecords();
+    if (records.some((record) => record.id === timer.id)) return;
+
+    records.push({
+      id: timer.id,
+      minutes: minutesElapsed,
+      completedAt: Date.now()
     });
     saveRecords(records);
   }
@@ -340,30 +383,13 @@
     }
   }
 
-  function playFourSecondAlarm() {
+  function playAlarm() {
     try {
-      prepareAudio();
-      if (!alarmContext || alarmContext.state !== "running") return;
-
-      const start = alarmContext.currentTime;
-      const oscillator = alarmContext.createOscillator();
-      const gain = alarmContext.createGain();
-      oscillator.type = "square";
-      oscillator.frequency.setValueAtTime(880, start);
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.16, start + 0.03);
-      gain.gain.setValueAtTime(0.16, start + 3.85);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 4);
-      oscillator.connect(gain).connect(alarmContext.destination);
-      oscillator.start(start);
-      oscillator.stop(start + 4);
+      const audio = new Audio('alarma.mp3');
+      audio.play();
     } catch {
       // No afecta el registro ni el cambio de fase si el audio no está disponible.
     }
-  }
-
-  function playAlarm() {
-    playFourSecondAlarm();
   }
 
   function openApp(username) {
@@ -419,6 +445,7 @@
   elements.logoutButton.addEventListener("click", logout);
   elements.startButton.addEventListener("click", startTimer);
   elements.cancelButton.addEventListener("click", cancelTimer);
+  elements.endButton.addEventListener("click", finishCurrentTimer);
   elements.noticeClose.addEventListener("click", () => { elements.notice.hidden = true; });
   elements.tabs.forEach((tab) => tab.addEventListener("click", () => showView(tab.dataset.view)));
   document.addEventListener("visibilitychange", () => {
