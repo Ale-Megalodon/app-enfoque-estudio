@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Focus Study, un temporizador de estudio simple con estadísticas locales."
+    />
+    <title>Focus Study</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="login-screen" class="login-screen" aria-labelledby="login-title">
+      <section class="login-card">
+        <div class="brand-mark" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <p class="eyebrow">FOCUS STUDY</p>
+        <h1 id="login-title">Tu espacio de estudio,<br />sin distracciones.</h1>
+        <p class="login-copy">Inicia sesión para conservar tu temporizador y tus registros en este navegador.</p>
+
+        <form id="login-form" novalidate>
+          <label for="username">Usuario</label>
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="Tu nombre de usuario" required />
+
+          <label for="password">Contraseña</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Tu contraseña" required />
+
+          <p id="login-error" class="form-error" role="alert" hidden></p>
+          <button type="submit" class="button button-primary button-full">Iniciar sesión <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="local-note">Acceso local · Tus datos permanecen en este dispositivo.</p>
+      </section>
+    </main>
+
+    <div id="app-shell" class="app-shell" hidden>
+      <header class="topbar">
+        <a class="app-brand" href="#timer" aria-label="Focus Study, ir al temporizador">
+          <span class="brand-mark brand-mark-small" aria-hidden="true"><span></span><span></span><span></span></span>
+          <span>Focus Study</span>
+        </a>
+        <nav class="tabs" aria-label="Navegación principal">
+          <button class="tab is-active" type="button" data-view="timer" aria-current="page">Temporizador</button>
+          <button class="tab" type="button" data-view="statistics">Estadísticas</button>
+        </nav>
+        <div class="account">
+          <span id="user-name" class="user-name"></span>
+          <button id="logout-button" class="logout-button" type="button">Salir</button>
+        </div>
+      </header>
+
+      <main class="content">
+        <section id="timer-view" class="view is-active" aria-labelledby="timer-heading">
+          <div class="view-heading">
+            <p class="eyebrow">SESIÓN ACTUAL</p>
+            <h1 id="timer-heading">Haz espacio para concentrarte.</h1>
+            <p>Elige una duración y comienza cuando estés listo.</p>
+          </div>
+
+          <section class="timer-card" aria-live="polite">
+            <div class="phase-row">
+              <div>
+                <p id="phase-label" class="phase-label">FOCUS</p>
+                <h2 id="phase-title">Tiempo de estudio</h2>
+              </div>
+              <span id="timer-status" class="status-pill">LISTO</span>
+            </div>
+
+            <div id="timer-ring" class="timer-ring" aria-label="Tiempo restante">
+              <div class="timer-ring-inner">
+                <strong id="timer-display" class="timer-display">25:00</strong>
+                <span id="timer-caption">minutos restantes</span>
+              </div>
+            </div>
+
+            <div class="duration-control">
+              <label id="duration-label" for="duration-input">Duración de estudio</label>
+              <div class="number-input-wrap">
+                <input id="duration-input" type="number" min="1" max="240" step="1" value="25" inputmode="numeric" />
+                <span>min</span>
+              </div>
+            </div>
+
+            <div class="timer-actions">
+              <button id="start-button" class="button button-primary" type="button">Iniciar estudio <span aria-hidden="true">→</span></button>
+              <button id="cancel-button" class="button button-secondary" type="button" hidden>Cancelar sesión</button>
+            </div>
+            <p id="timer-message" class="timer-message">El tiempo de descanso nunca se incluye en tus estadísticas.</p>
+          </section>
+        </section>
+
+        <section id="statistics-view" class="view" aria-labelledby="statistics-heading" hidden>
+          <div class="view-heading stats-heading">
+            <div>
+              <p class="eyebrow">REGISTRO DE ESTUDIO</p>
+              <h1 id="statistics-heading">Tus horas de enfoque.</h1>
+              <p>Solo se contabilizan las sesiones de estudio finalizadas.</p>
+            </div>
+            <p id="stats-updated" class="stats-updated">Actualizado ahora</p>
+          </div>
+
+          <div class="stats-grid">
+            <article class="stat-card stat-card-featured">
+              <p>HOY</p>
+              <strong id="stat-today">0 h</strong>
+              <span id="stat-today-detail">0 minutos completados</span>
+            </article>
+            <article class="stat-card">
+              <p>AYER</p>
+              <strong id="stat-yesterday">0 h</strong>
+              <span id="stat-yesterday-detail">0 minutos completados</span>
+            </article>
+            <article class="stat-card">
+              <p>SEMANA</p>
+              <strong id="stat-week">0 h</strong>
+              <span id="stat-week-detail">0 minutos completados</span>
+            </article>
+            <article class="stat-card">
+              <p>MES</p>
+              <strong id="stat-month">0 h</strong>
+              <span id="stat-month-detail">0 minutos completados</span>
+            </article>
+            <article class="stat-card">
+              <p>AÑO</p>
+              <strong id="stat-year">0 h</strong>
+              <span id="stat-year-detail">0 minutos completados</span>
+            </article>
+          </div>
+
+          <p class="stats-note">Las horas se calculan como minutos de Focus finalizados ÷ 60. Los descansos quedan excluidos.</p>
+        </section>
+      </main>
+    </div>
+
+    <div id="completion-notice" class="completion-notice" role="status" aria-live="assertive" hidden>
+      <span id="notice-icon" aria-hidden="true">✓</span>
+      <div>
+        <strong id="notice-title">Sesión completada</strong>
+        <p id="notice-text"></p>
+      </div>
+      <button id="notice-close" type="button" aria-label="Cerrar aviso">×</button>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
