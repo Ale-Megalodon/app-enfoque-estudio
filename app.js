@@ -270,10 +270,35 @@ function formatClock(milliseconds) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-// Formato exclusivo en horas
+// Formato en texto: "2 horas y 3 minutos", "45 minutos", "1 hora"
 function formatStudyTime(minutes) {
-  const hours = Math.max(0, numeric(minutes, 0) / 60);
-  return `${hours.toLocaleString("es-BO", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} hrs`;
+  const total = Math.max(0, numeric(minutes, 0));
+  if (total > 0 && total < 0.5) return "menos de 1 minuto";
+  const rounded = Math.round(total);
+  const h = Math.floor(rounded / 60);
+  const m = rounded % 60;
+  const hText = `${h} ${h === 1 ? "hora" : "horas"}`;
+  const mText = `${m} ${m === 1 ? "minuto" : "minutos"}`;
+  if (h && m) return `${hText} y ${mText}`;
+  return h ? hText : mText;
+}
+
+// Formato visual para tarjetas: número grande + unidad pequeña
+function setDuration(element, minutes) {
+  if (!element) return;
+  const rounded = Math.round(Math.max(0, numeric(minutes, 0)));
+  const h = Math.floor(rounded / 60);
+  const m = rounded % 60;
+  const part = (n, unit) => `<span class="dur-num">${n}</span><span class="dur-unit">${unit}</span>`;
+  element.innerHTML = h ? (m ? `${part(h, "h")}${part(m, "min")}` : part(h, "h")) : part(m, "min");
+}
+
+// Formato compacto para el calendario: "2h 3m"
+function formatCompact(minutes) {
+  const rounded = Math.round(minutes);
+  const h = Math.floor(rounded / 60);
+  const m = rounded % 60;
+  return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
 }
 
 function localDayStart(date = new Date()) {
@@ -507,11 +532,11 @@ function renderStatistics() {
 
   elements.statsHeading.textContent = timer.title;
   elements.statsTotalLabel.textContent = `${formatStudyTime(total)} registrados`;
-  elements.statDay.textContent = formatStudyTime(day);
-  elements.statYesterday.textContent = formatStudyTime(yesterday);
-  elements.statWeek.textContent = formatStudyTime(week);
-  elements.statMonth.textContent = formatStudyTime(month);
-  elements.statTotal.textContent = formatStudyTime(total);
+  setDuration(elements.statDay, day);
+  setDuration(elements.statYesterday, yesterday);
+  setDuration(elements.statWeek, week);
+  setDuration(elements.statMonth, month);
+  setDuration(elements.statTotal, total);
   elements.recentSummary.textContent = `${sessions.length} ${sessions.length === 1 ? "sesión" : "sesiones"}`;
 
   renderRecentSessions(sessions);
@@ -618,7 +643,7 @@ function renderCharts() {
     animation: { duration: 250 },
     plugins: {
       legend: { display: false },
-      tooltip: { callbacks: { label: (c) => `${c.parsed.y} hrs` } }
+      tooltip: { callbacks: { label: (c) => formatStudyTime(c.parsed.y * 60) } }
     },
     scales: {
       x: {
@@ -762,7 +787,7 @@ function renderMonthBreakdown(sessions, now) {
 
     const cell = document.createElement("div");
     cell.className = `calendar-day-cell${mins > 0 ? " has-data" : ""}`;
-    cell.innerHTML = `<span>${day}</span>${mins > 0 ? `<small>${(mins / 60).toFixed(1)}h</small>` : ""}`;
+    cell.innerHTML = `<span class="day-num">${day}</span>${mins > 0 ? `<span class="day-hrs">${formatCompact(mins)}</span>` : ""}`;
     grid.append(cell);
   }
 
