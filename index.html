@@ -122,19 +122,31 @@
                 <h1 id="stats-heading">Estudio profundo</h1>
                 <p>Solo las sesiones Focus terminadas cuentan en este registro.</p>
               </div>
-              <span id="stats-total-label" class="stats-total-label">0 min registrados</span>
+              <div class="stats-heading-actions">
+                <span id="stats-total-label" class="stats-total-label">0 hrs registradas</span>
+                <div class="stats-mode-toggle" role="group" aria-label="Vista de estadísticas">
+                  <button class="stats-mode-button" type="button" data-stats-mode="charts">📊 <span>Gráficos</span></button>
+                  <button class="stats-mode-button is-active" type="button" data-stats-mode="data">🔢 <span>Datos</span></button>
+                </div>
+              </div>
             </div>
-            <div class="stats-grid">
-              <article class="metric-card metric-card-highlight"><span>HOY</span><strong id="stat-day">0 min</strong><small>Focus completado</small></article>
-              <article class="metric-card"><span>AYER</span><strong id="stat-yesterday">0 min</strong><small>Focus completado</small></article>
-              <button id="week-breakdown" class="metric-card metric-button" type="button"><span>SEMANA</span><strong id="stat-week">0 h</strong><small>Últimos 7 días <b>Ver detalle →</b></small></button>
-              <button id="month-breakdown" class="metric-card metric-button" type="button"><span>MES</span><strong id="stat-month">0 h</strong><small>Mes actual <b>Ver detalle →</b></small></button>
-              <article class="metric-card"><span>TOTAL</span><strong id="stat-total">0 h</strong><small>Desde la creación</small></article>
+            <div id="stats-data-view">
+              <div class="stats-grid">
+                <button id="day-breakdown" class="metric-card metric-card-highlight metric-button" type="button"><span>HOY</span><strong id="stat-day">0 hrs</strong><small>Focus completado <b>Ver detalle →</b></small></button>
+                <button id="yesterday-breakdown" class="metric-card metric-button" type="button"><span>AYER</span><strong id="stat-yesterday">0 hrs</strong><small>Focus completado <b>Ver detalle →</b></small></button>
+                <button id="week-breakdown" class="metric-card metric-button" type="button"><span>SEMANA</span><strong id="stat-week">0 hrs</strong><small>Últimos 7 días <b>Ver detalle →</b></small></button>
+                <button id="month-breakdown" class="metric-card metric-button" type="button"><span>MES</span><strong id="stat-month">0 hrs</strong><small>Mes actual <b>Ver detalle →</b></small></button>
+                <article class="metric-card"><span>TOTAL</span><strong id="stat-total">0 hrs</strong><small>Desde la creación</small></article>
+              </div>
+              <section class="recent-sessions" aria-labelledby="recent-heading">
+                <div class="section-title"><h2 id="recent-heading">Sesiones recientes</h2><span id="recent-summary">0 sesiones</span></div>
+                <div id="recent-list" class="recent-list"></div>
+              </section>
             </div>
-            <section class="recent-sessions" aria-labelledby="recent-heading">
-              <div class="section-title"><h2 id="recent-heading">Sesiones recientes</h2><span id="recent-summary">0 sesiones</span></div>
-              <div id="recent-list" class="recent-list"></div>
-            </section>
+            <div id="stats-charts-view" class="stats-charts" hidden>
+              <section class="chart-card"><div class="chart-heading"><div><p class="eyebrow">ÚLTIMOS 7 DÍAS</p><h2>Rendimiento diario</h2></div><span>Horas Focus</span></div><div class="chart-wrap"><canvas id="weekly-chart" aria-label="Gráfico de barras de la semana"></canvas></div></section>
+              <section class="chart-card"><div class="chart-heading"><div><p class="eyebrow">AÑO ACTUAL</p><h2>Tendencia mensual</h2></div><span>Horas Focus</span></div><div class="chart-wrap"><canvas id="monthly-chart" aria-label="Gráfico de tendencia mensual"></canvas></div></section>
+            </div>
           </div>
         </section>
       </main>
@@ -175,6 +187,7 @@
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-icon" aria-hidden="true">✓</span><p id="toast-message"></p><button id="toast-close" type="button" aria-label="Cerrar aviso">×</button></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script type="module" src="app.js"></script>
   </body>
 </html>

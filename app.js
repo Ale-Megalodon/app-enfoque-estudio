@@ -79,6 +79,9 @@ const elements = {
   statsWorkspace: document.querySelector("#stats-workspace"),
   statsHeading: document.querySelector("#stats-heading"),
   statsTotalLabel: document.querySelector("#stats-total-label"),
+  statsDataView: document.querySelector("#stats-data-view"),
+  statsChartsView: document.querySelector("#stats-charts-view"),
+  statsModeButtons: [...document.querySelectorAll(".stats-mode-button")],
   statDay: document.querySelector("#stat-day"),
   statYesterday: document.querySelector("#stat-yesterday"),
   statWeek: document.querySelector("#stat-week"),
@@ -86,8 +89,12 @@ const elements = {
   statTotal: document.querySelector("#stat-total"),
   recentSummary: document.querySelector("#recent-summary"),
   recentList: document.querySelector("#recent-list"),
+  dayBreakdown: document.querySelector("#day-breakdown"),
+  yesterdayBreakdown: document.querySelector("#yesterday-breakdown"),
   weekBreakdown: document.querySelector("#week-breakdown"),
   monthBreakdown: document.querySelector("#month-breakdown"),
+  weeklyChart: document.querySelector("#weekly-chart"),
+  monthlyChart: document.querySelector("#monthly-chart"),
   timerModal: document.querySelector("#timer-modal"),
   timerForm: document.querySelector("#timer-form"),
   editorEyebrow: document.querySelector("#editor-eyebrow"),
@@ -124,7 +131,11 @@ let tickerId = null;
 let toastTimeout = null;
 let editingTimerId = null;
 let volumeSaveTimeout = null;
+let statsMode = "data";
+let weeklyChartInstance = null;
+let monthlyChartInstance = null;
 const completingTimers = new Set();
+const pendingTimerUpdates = new Map();
 
 function numeric(value, fallback) {
   return Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -202,11 +213,8 @@ function formatClock(milliseconds) {
 }
 
 function formatStudyTime(minutes) {
-  const totalMinutes = Math.max(0, Math.round(minutes));
-  if (totalMinutes < 60) return `${totalMinutes} min`;
-  const hours = Math.floor(totalMinutes / 60);
-  const rest = totalMinutes % 60;
-  return rest ? `${hours} h ${rest} min` : `${hours} h`;
+  const hours = Math.max(0, numeric(minutes, 0) / 60);
+  return `${hours.toLocaleString("en-US", { maximumFractionDigits: 1 })} hrs`;
 }
 
 function localDayStart(date = new Date()) {
@@ -231,6 +239,30 @@ function timerProgress(timer, remaining) {
 function setSyncStatus(message, saving = false) {
   elements.syncStatus.textContent = message;
   elements.syncStatus.classList.toggle("is-saving", saving);
+}
+
+function applyOptimisticTimerUpdate(timerId, patch) {
+  const index = timers.findIndex((timer) => timer.id === timerId);
+  if (index < 0) return null;
+  const previous = timers[index];
+  const next = { ...previous, ...patch };
+  pendingTimerUpdates.set(timerId, { patch, updatedAt: patch.updatedAt || Date.now() });
+  timers = [...timers.slice(0, index), next, ...timers.slice(index + 1)];
+  renderAll();
+  return previous;
+}
+
+function rollbackOptimisticTimerUpdate(timerId, previous) {
+  pendingTimerUpdates.delete(timerId);
+  if (!previous) return;
+  const index = timers.findIndex((timer) => timer.id === timerId);
+  if (index < 0) return;
+  timers = [...timers.slice(0, index), previous, ...timers.slice(index + 1)];
+  renderAll();
+}
+
+function resolveOptimisticTimerUpdate(timerId) {
+  pendingTimerUpdates.delete(timerId);
 }
 
 function renderTimers() {
@@ -342,6 +374,7 @@ function renderStatistics() {
   elements.statTotal.textContent = formatStudyTime(total);
   elements.recentSummary.textContent = `${sessions.length} ${sessions.length === 1 ? "sesión" : "sesiones"}`;
   renderRecentSessions(sessions);
+  renderStatisticsMode();
 }
 
 function renderRecentSessions(sessions) {
@@ -371,6 +404,88 @@ function renderAll() {
   renderTimers();
   renderTimerWorkspace();
   renderStatistics();
+}
+
+function renderStatisticsMode() {
+  const showCharts = statsMode === "charts";
+  elements.statsDataView.hidden = showCharts;
+  elements.statsChartsView.hidden = !showCharts;
+  elements.statsModeButtons.forEach((button) => {
+    const active = button.dataset.statsMode === statsMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  if (showCharts) renderCharts();
+}
+
+function chartColors() {
+  const isDark = document.body.classList.contains("dark-mode");
+  return {
+    grid: isDark ? "rgba(165, 201, 238, 0.14)" : "rgba(148, 163, 184, 0.2)",
+    text: isDark ? "#bfd0e5" : "#64748b",
+    accent: isDark ? "#7de2ff" : "#0284c7",
+    area: isDark ? "rgba(125, 226, 255, 0.18)" : "rgba(2, 132, 199, 0.14)"
+  };
+}
+
+function destroyCharts() {
+  weeklyChartInstance?.destroy();
+  monthlyChartInstance?.destroy();
+  weeklyChartInstance = null;
+  monthlyChartInstance = null;
+}
+
+function renderCharts() {
+  const timer = selectedTimer();
+  if (!timer || !window.Chart) return;
+  destroyCharts();
+  const now = new Date();
+  const today = localDayStart(now);
+  const colors = chartColors();
+  const weekLabels = [];
+  const weekValues = [];
+  for (let offset = 6; offset >= 0; offset -= 1) {
+    const start = new Date(today);
+    start.setDate(start.getDate() - offset);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    weekLabels.push(start.toLocaleDateString("es-BO", { weekday: "short", day: "numeric" }));
+    weekValues.push(Number((sumSessions(timer.sessions, (session) => session.completedAt >= start.getTime() && session.completedAt < end.getTime()) / 60).toFixed(2)));
+  }
+  const year = now.getFullYear();
+  const monthLabels = [];
+  const monthValues = [];
+  for (let month = 0; month < 12; month += 1) {
+    const start = new Date(year, month, 1).getTime();
+    const end = new Date(year, month + 1, 1).getTime();
+    monthLabels.push(new Date(year, month, 1).toLocaleDateString("es-BO", { month: "short" }));
+    monthValues.push(Number((sumSessions(timer.sessions, (session) => session.completedAt >= start && session.completedAt < end) / 60).toFixed(2)));
+  }
+  const commonOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 260 },
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => `${context.parsed.y} hrs` } } },
+    scales: {
+      x: { grid: { display: false }, ticks: { color: colors.text, font: { size: 11 } }, border: { display: false } },
+      y: { beginAtZero: true, grid: { color: colors.grid }, ticks: { color: colors.text, callback: (value) => `${value}h`, font: { size: 11 } }, border: { display: false } }
+    }
+  };
+  weeklyChartInstance = new window.Chart(elements.weeklyChart, {
+    type: "bar",
+    data: { labels: weekLabels, datasets: [{ data: weekValues, backgroundColor: colors.accent, borderRadius: 7, borderSkipped: false, maxBarThickness: 34 }] },
+    options: commonOptions
+  });
+  monthlyChartInstance = new window.Chart(elements.monthlyChart, {
+    type: "line",
+    data: { labels: monthLabels, datasets: [{ data: monthValues, borderColor: colors.accent, backgroundColor: colors.area, fill: true, tension: 0.38, pointRadius: 3, pointHoverRadius: 5, pointBackgroundColor: colors.accent, borderWidth: 2.5 }] },
+    options: commonOptions
+  });
+}
+
+function setStatisticsMode(nextMode) {
+  statsMode = nextMode === "charts" ? "charts" : "data";
+  renderStatisticsMode();
 }
 
 function selectTimer(timerId) {
@@ -497,101 +612,126 @@ async function removeTimer() {
   }
 }
 
-async function startTimer() {
+function syncTimerInBackground(timerId, previous, task, failureMessage) {
+  task.then((committed) => {
+    if (committed === false) {
+      rollbackOptimisticTimerUpdate(timerId, previous);
+      showToast("El temporizador cambió en otro dispositivo. Se actualizó la vista.", "!");
+      return;
+    }
+    // El snapshot local confirmado elimina el parche pendiente; así no hay parpadeo con datos antiguos.
+  }).catch((error) => {
+    rollbackOptimisticTimerUpdate(timerId, previous);
+    showToast(failureMessage, "!");
+    console.error(error);
+  }).finally(() => {
+    setSyncStatus("Sincronizado");
+  });
+}
+
+function startTimer() {
   const timer = selectedTimer();
   if (!timer || timer.status !== "idle") return;
-  setSyncStatus("Iniciando…", true);
-  try {
-    await runTransaction(db, async (transaction) => {
-      const snapshot = await transaction.get(timerReference(timer.id));
-      if (!snapshot.exists()) return;
-      const current = timerFromData(timer.id, snapshot.data());
-      if (current.status !== "idle") return;
-      const durationMs = (current.phase === "focus" ? current.focusMinutes : current.breakMinutes) * 60_000;
-      const now = Date.now();
-      transaction.update(snapshot.ref, {
-        status: "running",
-        endTime: now + durationMs,
-        remainingMs: null,
-        activeDurationMs: durationMs,
-        updatedAt: now
-      });
-    });
-  } catch (error) {
-    showToast("No se pudo iniciar el temporizador.", "!");
-    console.error(error);
-  } finally {
-    setSyncStatus("Sincronizado");
-  }
-}
-
-async function togglePause() {
-  const timer = selectedTimer();
-  if (!timer || timer.status === "idle") return;
+  const startedAt = Date.now();
+  const durationMs = (timer.phase === "focus" ? timer.focusMinutes : timer.breakMinutes) * 60_000;
+  const patch = {
+    status: "running",
+    endTime: startedAt + durationMs,
+    remainingMs: null,
+    activeDurationMs: durationMs,
+    updatedAt: startedAt
+  };
+  const previous = applyOptimisticTimerUpdate(timer.id, patch);
+  startTicker();
   setSyncStatus("Sincronizando…", true);
-  try {
-    await runTransaction(db, async (transaction) => {
-      const snapshot = await transaction.get(timerReference(timer.id));
-      if (!snapshot.exists()) return;
-      const current = timerFromData(timer.id, snapshot.data());
-      const now = Date.now();
-      if (current.status === "running") {
-        const remainingMs = Math.max(0, current.endTime - now);
-        transaction.update(snapshot.ref, { status: "paused", endTime: null, remainingMs, updatedAt: now });
-      } else if (current.status === "paused") {
-        transaction.update(snapshot.ref, { status: "running", endTime: now + current.remainingMs, updatedAt: now });
-      }
-    });
-  } catch (error) {
-    showToast("No se pudo actualizar la pausa.", "!");
-    console.error(error);
-  } finally {
-    setSyncStatus("Sincronizado");
-  }
+  const task = runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(timerReference(timer.id));
+    if (!snapshot.exists()) return false;
+    const current = timerFromData(timer.id, snapshot.data());
+    if (current.status !== "idle") return false;
+    transaction.update(snapshot.ref, patch);
+    return true;
+  });
+  syncTimerInBackground(timer.id, previous, task, "No se pudo iniciar el temporizador.");
 }
 
-async function finishTimer() {
+function togglePause() {
   const timer = selectedTimer();
   if (!timer || timer.status === "idle") return;
+  const changedAt = Date.now();
+  const isPausing = timer.status === "running";
+  const remainingMs = isPausing ? Math.max(0, timer.endTime - changedAt) : timer.remainingMs;
+  const patch = isPausing
+    ? { status: "paused", endTime: null, remainingMs, updatedAt: changedAt }
+    : { status: "running", endTime: changedAt + remainingMs, remainingMs: null, updatedAt: changedAt };
+  const previous = applyOptimisticTimerUpdate(timer.id, patch);
+  startTicker();
+  setSyncStatus("Sincronizando…", true);
+  const task = runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(timerReference(timer.id));
+    if (!snapshot.exists()) return false;
+    const current = timerFromData(timer.id, snapshot.data());
+    if (isPausing && current.status !== "running") return false;
+    if (!isPausing && current.status !== "paused") return false;
+    transaction.update(snapshot.ref, patch);
+    return true;
+  });
+  syncTimerInBackground(timer.id, previous, task, "No se pudo actualizar la pausa.");
+}
+
+function finishTimer() {
+  const timer = selectedTimer();
+  if (!timer || timer.status === "idle") return;
+  const finishedAt = Date.now();
+  const remainingMs = timer.status === "running"
+    ? Math.max(0, timer.endTime - finishedAt)
+    : timer.remainingMs;
+  const registeredMinutes = timer.phase === "focus"
+    ? Math.max(0, timer.activeDurationMs - remainingMs) / 60_000
+    : 0;
+  const session = registeredMinutes > 0
+    ? { id: sessionId(), minutes: registeredMinutes, completedAt: finishedAt }
+    : null;
+  const patch = {
+    sessions: session ? [...timer.sessions, session] : timer.sessions,
+    phase: "focus",
+    status: "idle",
+    endTime: null,
+    remainingMs: null,
+    activeDurationMs: null,
+    updatedAt: finishedAt
+  };
+  const previous = applyOptimisticTimerUpdate(timer.id, patch);
+  showToast(timer.phase === "focus"
+    ? (registeredMinutes > 0 ? `${formatStudyTime(registeredMinutes)} registrados.` : "Sesión finalizada.")
+    : "Descanso finalizado sin registrar tiempo de estudio.");
   setSyncStatus("Registrando…", true);
-  try {
-    const result = await runTransaction(db, async (transaction) => {
-      const snapshot = await transaction.get(timerReference(timer.id));
-      if (!snapshot.exists()) return { registeredMinutes: 0, phase: "focus" };
-      const current = timerFromData(timer.id, snapshot.data());
-      if (current.status === "idle") return { registeredMinutes: 0, phase: current.phase };
-      const now = Date.now();
-      const remainingMs = current.status === "running"
-        ? Math.max(0, current.endTime - now)
-        : current.remainingMs;
-      const elapsedMs = Math.max(0, current.activeDurationMs - remainingMs);
-      const registeredMinutes = current.phase === "focus" ? elapsedMs / 60_000 : 0;
-      const sessions = [...current.sessions];
-      if (registeredMinutes > 0) {
-        sessions.push({ id: sessionId(), minutes: registeredMinutes, completedAt: now });
-      }
-      transaction.update(snapshot.ref, {
-        sessions,
-        phase: "focus",
-        status: "idle",
-        endTime: null,
-        remainingMs: null,
-        activeDurationMs: null,
-        updatedAt: now
-      });
-      return { registeredMinutes, phase: current.phase };
+  const task = runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(timerReference(timer.id));
+    if (!snapshot.exists()) return false;
+    const current = timerFromData(timer.id, snapshot.data());
+    if (current.status === "idle") return false;
+    const cloudRemainingMs = current.status === "running"
+      ? Math.max(0, current.endTime - finishedAt)
+      : current.remainingMs;
+    const cloudRegisteredMinutes = current.phase === "focus"
+      ? Math.max(0, current.activeDurationMs - cloudRemainingMs) / 60_000
+      : 0;
+    const cloudSession = cloudRegisteredMinutes > 0
+      ? { id: session?.id || sessionId(), minutes: cloudRegisteredMinutes, completedAt: finishedAt }
+      : null;
+    transaction.update(snapshot.ref, {
+      sessions: cloudSession ? [...current.sessions, cloudSession] : current.sessions,
+      phase: "focus",
+      status: "idle",
+      endTime: null,
+      remainingMs: null,
+      activeDurationMs: null,
+      updatedAt: finishedAt
     });
-    if (result.phase === "focus") {
-      showToast(result.registeredMinutes > 0 ? `${formatStudyTime(result.registeredMinutes)} registrados.` : "Sesión finalizada.");
-    } else {
-      showToast("Descanso finalizado sin registrar tiempo de estudio.");
-    }
-  } catch (error) {
-    showToast("No se pudo terminar la sesión.", "!");
-    console.error(error);
-  } finally {
-    setSyncStatus("Sincronizado");
-  }
+    return true;
+  });
+  syncTimerInBackground(timer.id, previous, task, "No se pudo terminar la sesión.");
 }
 
 async function completeExpiredTimer(timer) {
@@ -698,6 +838,7 @@ function applySettings(nextSettings) {
   elements.darkModeToggle.checked = settings.darkMode;
   elements.volumeSlider.value = settings.volume;
   elements.volumeLabel.textContent = `${settings.volume}%`;
+  if (statsMode === "charts" && selectedTimer()) renderCharts();
 }
 
 async function saveSettings(patch) {
@@ -733,25 +874,90 @@ function openWeekBreakdown() {
   renderBreakdown("ÚLTIMAS 4 SEMANAS", `Semanas de ${timer.title}`, rows);
 }
 
+function timeRangeLabel(hour) {
+  const formatHour = (value) => {
+    const suffix = value >= 12 && value < 24 ? "PM" : "AM";
+    const hour12 = value % 12 || 12;
+    return `${String(hour12).padStart(2, "0")}:00 ${suffix}`;
+  };
+  return `${formatHour(hour)} - ${formatHour((hour + 1) % 24)}`;
+}
+
+function openDayBreakdown(dayOffset) {
+  const timer = selectedTimer();
+  if (!timer) return;
+  const start = localDayStart(new Date());
+  start.setDate(start.getDate() + dayOffset);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  const hours = new Map();
+  timer.sessions
+    .filter((session) => session.completedAt >= start.getTime() && session.completedAt < end.getTime())
+    .forEach((session) => {
+      const hour = new Date(session.completedAt).getHours();
+      hours.set(hour, (hours.get(hour) || 0) + session.minutes);
+    });
+  const rows = [...hours.entries()]
+    .sort(([firstHour], [secondHour]) => firstHour - secondHour)
+    .map(([hour, minutes]) => ({ label: timeRangeLabel(hour), minutes }));
+  const dayLabel = dayOffset === 0 ? "HOY" : "AYER";
+  const dateLabel = start.toLocaleDateString("es-BO", { weekday: "long", day: "numeric", month: "long" });
+  renderBreakdown(dayLabel, `Bloques de ${dateLabel}`, rows);
+}
+
 function openMonthBreakdown() {
   const timer = selectedTimer();
   if (!timer) return;
-  const year = new Date().getFullYear();
-  const rows = Array.from({ length: 12 }, (_, month) => {
-    const start = new Date(year, month, 1).getTime();
-    const end = new Date(year, month + 1, 1).getTime();
-    return {
-      label: new Date(year, month, 1).toLocaleDateString("es-BO", { month: "long" }),
-      minutes: sumSessions(timer.sessions, (session) => session.completedAt >= start && session.completedAt < end)
-    };
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const dayMinutes = new Map();
+  timer.sessions.forEach((session) => {
+    const date = new Date(session.completedAt);
+    if (date.getFullYear() === year && date.getMonth() === month) {
+      dayMinutes.set(date.getDate(), (dayMinutes.get(date.getDate()) || 0) + session.minutes);
+    }
   });
-  renderBreakdown(`ACUMULADO ${year}`, `Meses de ${timer.title}`, rows);
+  elements.breakdownEyebrow.textContent = "CALENDARIO MENSUAL";
+  elements.breakdownTitle.textContent = now.toLocaleDateString("es-BO", { month: "long", year: "numeric" });
+  elements.breakdownList.className = "breakdown-list calendar-breakdown";
+  elements.breakdownList.replaceChildren();
+  ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].forEach((label) => {
+    const header = document.createElement("span");
+    header.className = "calendar-weekday";
+    header.textContent = label;
+    elements.breakdownList.append(header);
+  });
+  for (let blank = 0; blank < firstWeekday; blank += 1) {
+    const spacer = document.createElement("span");
+    spacer.className = "calendar-day is-empty";
+    elements.breakdownList.append(spacer);
+  }
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const cell = document.createElement("div");
+    const isToday = now.getDate() === day;
+    cell.className = `calendar-day${isToday ? " is-today" : ""}`;
+    cell.innerHTML = "<span></span><strong></strong>";
+    cell.querySelector("span").textContent = day;
+    cell.querySelector("strong").textContent = formatStudyTime(dayMinutes.get(day) || 0);
+    elements.breakdownList.append(cell);
+  }
+  openModal(elements.breakdownModal);
 }
 
 function renderBreakdown(eyebrow, title, rows) {
   elements.breakdownEyebrow.textContent = eyebrow;
   elements.breakdownTitle.textContent = title;
+  elements.breakdownList.className = "breakdown-list";
   elements.breakdownList.replaceChildren();
+  if (!rows.length) {
+    const empty = document.createElement("p");
+    empty.className = "breakdown-empty";
+    empty.textContent = "No hay sesiones registradas en este período.";
+    elements.breakdownList.append(empty);
+  }
   rows.forEach((row) => {
     const item = document.createElement("div");
     item.className = "breakdown-row";
@@ -792,6 +998,15 @@ function listenToCloudData() {
   unsubscribeTimers = onSnapshot(collection(db, "users", currentUser.uid, "timers"), (snapshot) => {
     timers = snapshot.docs
       .map((document) => timerFromData(document.id, document.data()))
+      .map((timer) => {
+        const pending = pendingTimerUpdates.get(timer.id);
+        if (!pending) return timer;
+        if (timer.updatedAt >= pending.updatedAt) {
+          pendingTimerUpdates.delete(timer.id);
+          return timer;
+        }
+        return { ...timer, ...pending.patch };
+      })
       .sort((first, second) => first.createdAt - second.createdAt);
     if (!selectedTimerId || !timers.some((timer) => timer.id === selectedTimerId)) selectedTimerId = timers[0]?.id || null;
     renderAll();
