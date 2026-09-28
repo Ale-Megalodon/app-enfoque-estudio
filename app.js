@@ -129,8 +129,10 @@ const elements = {
   statTotal: document.querySelector("#stat-total"),
   recentSummary: document.querySelector("#recent-summary"),
   recentList: document.querySelector("#recent-list"),
-  weeklyChart: document.querySelector("#weekly-chart"),
-  monthlyChart: document.querySelector("#monthly-chart"),
+  statsChart: document.querySelector("#stats-chart"),
+  chartTitle: document.querySelector("#chart-title"),
+  chartTotal: document.querySelector("#chart-total"),
+  chartScope: document.querySelector("#chart-scope"),
 
   // Modal: editor de temporizador
   timerModal: document.querySelector("#timer-modal"),
@@ -181,8 +183,10 @@ let tickerId = null;
 let toastTimeout = null;
 let volumeSaveTimeout = null;
 
-let weeklyChartInstance = null;
-let monthlyChartInstance = null;
+let chartInstance = null;
+let chartPeriod = "week";   // day | yesterday | week | month | year
+let chartType = "bar";      // bar | line
+let chartScope = "year";    // year | total (solo con periodo "year")
 
 const completingTimers = new Set();
 const pendingTimerUpdates = new Map();
@@ -597,98 +601,119 @@ function chartColors() {
 }
 
 function destroyCharts() {
-  weeklyChartInstance?.destroy();
-  monthlyChartInstance?.destroy();
-  weeklyChartInstance = null;
-  monthlyChartInstance = null;
+  chartInstance?.destroy();
+  chartInstance = null;
+}
+
+const CHART_TITLES = { day: "Hoy, por hora", yesterday: "Ayer, por hora", week: "Últimos 7 días", month: "Este mes, por día" };
+
+// Devuelve etiquetas y minutos por cada bloque del periodo elegido
+function chartBuckets(timer) {
+  const now = new Date();
+  const sessions = timer.sessions;
+  const todayStart = localDayStart(now).getTime();
+  const between = (a, b) => sumSessions(sessions, (s) => s.completedAt >= a && s.completedAt < b);
+  const labels = [];
+  const values = [];
+  let title = CHART_TITLES[chartPeriod] || "";
+
+  if (chartPeriod === "day" || chartPeriod === "yesterday") {
+    const start = chartPeriod === "day" ? todayStart : todayStart - DAY_MS;
+    for (let h = 0; h < 24; h += 1) {
+      labels.push(String(h).padStart(2, "0"));
+      values.push(between(start + h * 3_600_000, start + (h + 1) * 3_600_000));
+    }
+  } else if (chartPeriod === "week") {
+    for (let offset = 6; offset >= 0; offset -= 1) {
+      const d = new Date(todayStart - offset * DAY_MS);
+      labels.push(d.toLocaleDateString("es-BO", { weekday: "short", day: "numeric" }));
+      values.push(between(d.getTime(), new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime()));
+    }
+  } else if (chartPeriod === "month") {
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    for (let day = 1; day <= new Date(y, m + 1, 0).getDate(); day += 1) {
+      labels.push(String(day));
+      values.push(between(new Date(y, m, day).getTime(), new Date(y, m, day + 1).getTime()));
+    }
+  } else {
+    let first = new Date(now.getFullYear(), 0, 1);
+    let count = 12;
+    if (chartScope === "total") {
+      const earliest = sessions.length ? Math.min(...sessions.map((s) => s.completedAt)) : now.getTime();
+      const e = new Date(earliest);
+      first = new Date(e.getFullYear(), e.getMonth(), 1);
+      count = (now.getFullYear() - first.getFullYear()) * 12 + now.getMonth() - first.getMonth() + 1;
+    }
+    title = chartScope === "total" ? "Total desde el inicio" : `Año ${now.getFullYear()}`;
+    for (let i = 0; i < count; i += 1) {
+      const start = new Date(first.getFullYear(), first.getMonth() + i, 1);
+      const end = new Date(first.getFullYear(), first.getMonth() + i + 1, 1);
+      const name = start.toLocaleDateString("es-BO", { month: "short" });
+      labels.push(chartScope === "total" ? `${name} ${String(start.getFullYear()).slice(2)}` : name);
+      values.push(between(start.getTime(), end.getTime()));
+    }
+  }
+  return { labels, values, title, total: values.reduce((a, b) => a + b, 0) };
+}
+
+function syncChartControls() {
+  document.querySelectorAll("[data-chart-period]").forEach((b) => b.classList.toggle("is-active", b.dataset.chartPeriod === chartPeriod));
+  document.querySelectorAll("[data-chart-type]").forEach((b) => b.classList.toggle("is-active", b.dataset.chartType === chartType));
+  document.querySelectorAll("[data-chart-scope]").forEach((b) => b.classList.toggle("is-active", b.dataset.chartScope === chartScope));
+  if (elements.chartScope) elements.chartScope.hidden = chartPeriod !== "year";
 }
 
 function renderCharts() {
   const timer = selectedTimer();
-  if (!timer || !window.Chart) return;
+  if (!timer || !window.Chart || !elements.statsChart) return;
   destroyCharts();
+  syncChartControls();
 
-  const now = new Date();
-  const today = localDayStart(now);
+  const { labels, values, title, total } = chartBuckets(timer);
+  elements.chartTitle.textContent = title;
+  elements.chartTotal.textContent = formatStudyTime(total);
+
   const colors = chartColors();
+  const asHours = Math.max(0, ...values) >= 120;
+  const data = values.map((v) => Number((asHours ? v / 60 : v).toFixed(2)));
+  const isLine = chartType === "line";
 
-  // Últimos 7 días
-  const weekLabels = [];
-  const weekValues = [];
-  for (let offset = 6; offset >= 0; offset -= 1) {
-    const start = new Date(today);
-    start.setDate(start.getDate() - offset);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    weekLabels.push(start.toLocaleDateString("es-BO", { weekday: "short", day: "numeric" }));
-    const minutes = sumSessions(timer.sessions, (s) => s.completedAt >= start.getTime() && s.completedAt < end.getTime());
-    weekValues.push(Number((minutes / 60).toFixed(1)));
-  }
-
-  // 12 meses del año actual
-  const year = now.getFullYear();
-  const monthLabels = [];
-  const monthValues = [];
-  for (let month = 0; month < 12; month += 1) {
-    const start = new Date(year, month, 1).getTime();
-    const end = new Date(year, month + 1, 1).getTime();
-    monthLabels.push(new Date(year, month, 1).toLocaleDateString("es-BO", { month: "short" }));
-    const minutes = sumSessions(timer.sessions, (s) => s.completedAt >= start && s.completedAt < end);
-    monthValues.push(Number((minutes / 60).toFixed(1)));
-  }
-
-  const commonOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 250 },
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: { label: (c) => formatStudyTime(c.parsed.y * 60) } }
+  chartInstance = new window.Chart(elements.statsChart, {
+    type: isLine ? "line" : "bar",
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: isLine ? colors.area : colors.accent,
+        borderColor: colors.accent,
+        fill: isLine,
+        tension: 0.35,
+        borderRadius: 6,
+        maxBarThickness: 28,
+        pointRadius: labels.length > 16 ? 0 : 3,
+        borderWidth: 2.5
+      }]
     },
-    scales: {
-      x: {
-        grid: { display: false },
-        ticks: { color: colors.text, font: { size: 11 } },
-        border: { display: false }
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 250 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c) => formatStudyTime(c.parsed.y * (asHours ? 60 : 1)) } }
       },
-      y: {
-        beginAtZero: true,
-        grid: { color: colors.grid },
-        ticks: { color: colors.text, callback: (v) => `${v}h`, font: { size: 11 } },
-        border: { display: false }
+      scales: {
+        x: { grid: { display: false }, ticks: { color: colors.text, font: { size: 11 }, maxRotation: 0 }, border: { display: false } },
+        y: {
+          beginAtZero: true,
+          grid: { color: colors.grid },
+          ticks: { color: colors.text, callback: (v) => `${v}${asHours ? "h" : "m"}`, font: { size: 11 } },
+          border: { display: false }
+        }
       }
     }
-  };
-
-  if (elements.weeklyChart) {
-    weeklyChartInstance = new window.Chart(elements.weeklyChart, {
-      type: "bar",
-      data: {
-        labels: weekLabels,
-        datasets: [{ data: weekValues, backgroundColor: colors.accent, borderRadius: 6, maxBarThickness: 32 }]
-      },
-      options: commonOptions
-    });
-  }
-
-  if (elements.monthlyChart) {
-    monthlyChartInstance = new window.Chart(elements.monthlyChart, {
-      type: "line",
-      data: {
-        labels: monthLabels,
-        datasets: [{
-          data: monthValues,
-          borderColor: colors.accent,
-          backgroundColor: colors.area,
-          fill: true,
-          tension: 0.35,
-          pointRadius: 3,
-          borderWidth: 2.5
-        }]
-      },
-      options: commonOptions
-    });
-  }
+  });
 }
 
 /* ==========================================================================
@@ -794,6 +819,63 @@ function renderMonthBreakdown(sessions, now) {
   elements.breakdownList.append(grid);
 }
 
+function renderYearsBreakdown(sessions) {
+  elements.breakdownEyebrow.textContent = "HISTORIAL";
+  elements.breakdownTitle.textContent = "Elige un año";
+  elements.breakdownList.replaceChildren();
+
+  const years = new Set([new Date().getFullYear()]);
+  sessions.forEach((s) => years.add(new Date(s.completedAt).getFullYear()));
+
+  [...years].sort((a, b) => b - a).forEach((year) => {
+    const mins = sumSessions(sessions, (s) => new Date(s.completedAt).getFullYear() === year);
+    const row = createBreakdownRow(String(year), `${formatStudyTime(mins)}  ›`);
+    row.classList.add("is-clickable");
+    row.tabIndex = 0;
+    row.setAttribute("role", "button");
+    row.addEventListener("click", () => renderYearMonths(sessions, year));
+    row.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); renderYearMonths(sessions, year); }
+    });
+    elements.breakdownList.append(row);
+  });
+}
+
+function renderYearMonths(sessions, year) {
+  elements.breakdownEyebrow.textContent = "AÑO";
+  elements.breakdownTitle.textContent = String(year);
+  elements.breakdownList.replaceChildren();
+
+  const back = document.createElement("button");
+  back.type = "button";
+  back.className = "button button-quiet back-button";
+  back.textContent = "← Años";
+  back.addEventListener("click", () => renderYearsBreakdown(sessions));
+
+  const yearTotal = sumSessions(sessions, (s) => new Date(s.completedAt).getFullYear() === year);
+  const summary = document.createElement("div");
+  summary.className = "year-summary";
+  summary.innerHTML = "<span>Total del año</span><strong></strong>";
+  summary.querySelector("strong").textContent = formatStudyTime(yearTotal);
+
+  const grid = document.createElement("div");
+  grid.className = "month-grid";
+  for (let month = 0; month < 12; month += 1) {
+    const start = new Date(year, month, 1).getTime();
+    const end = new Date(year, month + 1, 1).getTime();
+    const mins = sumSessions(sessions, (s) => s.completedAt >= start && s.completedAt < end);
+    const cell = document.createElement("div");
+    cell.className = `month-cell${mins > 0 ? " has-data" : ""}`;
+    const name = new Date(year, month, 1).toLocaleDateString("es-BO", { month: "short" });
+    cell.innerHTML = "<span></span><strong></strong>";
+    cell.querySelector("span").textContent = name.charAt(0).toUpperCase() + name.slice(1);
+    cell.querySelector("strong").textContent = mins > 0 ? formatCompact(mins) : "–";
+    grid.append(cell);
+  }
+
+  elements.breakdownList.append(back, summary, grid);
+}
+
 function openBreakdownModal(period) {
   const timer = selectedTimer();
   if (!timer) return;
@@ -810,6 +892,8 @@ function openBreakdownModal(period) {
     renderWeekBreakdown(sessions, todayStart);
   } else if (period === "month") {
     renderMonthBreakdown(sessions, now);
+  } else if (period === "total") {
+    renderYearsBreakdown(sessions);
   }
 
   openModal(elements.breakdownModal);
@@ -1302,6 +1386,18 @@ function initEvents() {
   elements.statYesterday?.closest(".metric-card")?.addEventListener("click", () => openBreakdownModal("yesterday"));
   elements.statWeek?.closest(".metric-card")?.addEventListener("click", () => openBreakdownModal("week"));
   elements.statMonth?.closest(".metric-card")?.addEventListener("click", () => openBreakdownModal("month"));
+
+  elements.statTotal?.closest(".metric-card")?.addEventListener("click", () => openBreakdownModal("total"));
+
+  // Controles de gráficos (periodo, tipo y alcance)
+  elements.statsChartsView?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-chart-period], [data-chart-type], [data-chart-scope]");
+    if (!btn) return;
+    if (btn.dataset.chartPeriod) chartPeriod = btn.dataset.chartPeriod;
+    if (btn.dataset.chartType) chartType = btn.dataset.chartType;
+    if (btn.dataset.chartScope) chartScope = btn.dataset.chartScope;
+    renderCharts();
+  });
 
   // Cierre de modales y toast
   document.querySelectorAll(".modal-close").forEach((btn) => {
