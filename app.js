@@ -65,6 +65,9 @@ const MAX_TIMERS = 5;
 const MAX_FOCUS_MINUTES = 240;
 const MAX_BREAK_MINUTES = 120;
 const DAY_MS = 86_400_000;
+const TAG_COLORS = ["#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#f97316", "#6366f1"];
+const MAX_TAGS = 3;
+const MAX_TAG_LENGTH = 16;
 
 /* ==========================================================================
    3. REFERENCIAS AL DOM
@@ -130,6 +133,12 @@ const elements = {
   recentSummary: document.querySelector("#recent-summary"),
   recentList: document.querySelector("#recent-list"),
   statsChart: document.querySelector("#stats-chart"),
+  syncToggle: document.querySelector("#sync-toggle"),
+  statsEyebrow: document.querySelector("#stats-eyebrow"),
+  chartLegend: document.querySelector("#chart-legend"),
+  timerColors: document.querySelector("#timer-colors"),
+  tagChips: document.querySelector("#tag-chips"),
+  tagInput: document.querySelector("#tag-input"),
   chartTitle: document.querySelector("#chart-title"),
   chartTotal: document.querySelector("#chart-total"),
   chartScope: document.querySelector("#chart-scope"),
@@ -186,6 +195,10 @@ let volumeSaveTimeout = null;
 let chartInstance = null;
 let chartPeriod = "week";   // day | yesterday | week | month | year
 let chartType = "bar";      // bar | line
+let syncMode = false;       // Sincronización: suma de todos los cronómetros
+const hiddenSeries = new Set();
+let editorTags = [];
+let editorColor = TAG_COLORS[0];
 let chartScope = "year";    // year | total (solo con periodo "year")
 
 const completingTimers = new Set();
@@ -216,6 +229,15 @@ function sanitizeSessions(value) {
   ));
 }
 
+function sanitizeTags(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((t) => typeof t === "string" && t.trim()).map((t) => t.trim().slice(0, MAX_TAG_LENGTH)).slice(0, MAX_TAGS);
+}
+
+function timerColor(timer) {
+  return timer.color || TAG_COLORS[Math.max(0, timers.findIndex((t) => t.id === timer.id)) % TAG_COLORS.length];
+}
+
 function timerFromData(id, raw = {}) {
   const focusMinutes = validMinutes(raw.focusMinutes, MAX_FOCUS_MINUTES) || DEFAULT_TIMER.focusMinutes;
   const breakMinutes = validMinutes(raw.breakMinutes, MAX_BREAK_MINUTES) || DEFAULT_TIMER.breakMinutes;
@@ -231,6 +253,8 @@ function timerFromData(id, raw = {}) {
     breakMinutes,
     priority: ["high", "medium", "low"].includes(raw.priority) ? raw.priority : "medium",
     sessions: sanitizeSessions(raw.sessions),
+    tags: sanitizeTags(raw.tags),
+    color: TAG_COLORS.includes(raw.color) ? raw.color : null,
     phase,
     status,
     endTime: Number.isFinite(raw.endTime) ? raw.endTime : null,
@@ -454,6 +478,18 @@ function renderTimers() {
       info.append(badge);
     }
 
+    card.style.setProperty("--tag", timerColor(timer));
+    if (timer.tags.length) {
+      const row = document.createElement("div");
+      row.className = "timer-card-tags";
+      timer.tags.forEach((name) => {
+        const chip = document.createElement("span");
+        chip.className = "tag-chip";
+        chip.textContent = name;
+        row.append(chip);
+      });
+      card.insertBefore(row, card.querySelector(".timer-card-edit"));
+    }
     card.addEventListener("click", (event) => {
       if (event.target.closest(".timer-card-edit")) return;
       selectTimer(timer.id);
@@ -513,12 +549,30 @@ function renderTimerWorkspace() {
 }
 
 /* ---- Estadísticas ---- */
-function renderStatistics() {
+// Origen de datos: un cronómetro o, con Sincronización, la suma de todos
+function statsSource() {
+  if (syncMode) {
+    return timers.length ? { title: "Sincronización", sessions: timers.flatMap((t) => t.sessions) } : null;
+  }
   const timer = selectedTimer();
-  const hasTimer = Boolean(timer);
+  return timer ? { title: timer.title, sessions: timer.sessions } : null;
+}
+
+function syncUi() {
+  elements.syncToggle?.classList.toggle("is-on", syncMode);
+  elements.syncToggle?.setAttribute("aria-pressed", String(syncMode));
+  if (elements.statsEyebrow) {
+    elements.statsEyebrow.textContent = syncMode ? "SUMA DE TODOS LOS CRONÓMETROS" : "ESTADÍSTICAS INDIVIDUALES";
+  }
+}
+
+function renderStatistics() {
+  const source = statsSource();
+  const hasTimer = Boolean(source);
   if (elements.statsEmpty) elements.statsEmpty.hidden = hasTimer;
   if (elements.statsWorkspace) elements.statsWorkspace.hidden = !hasTimer;
-  if (!timer) return;
+  if (!source) return;
+  syncUi();
 
   const now = new Date();
   const todayStart = localDayStart(now).getTime();
@@ -526,7 +580,7 @@ function renderStatistics() {
   const yesterdayStart = todayStart - DAY_MS;
   const sevenDaysStart = todayStart - 6 * DAY_MS;
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const sessions = timer.sessions;
+  const sessions = source.sessions;
 
   const day = sumSessions(sessions, (s) => s.completedAt >= todayStart && s.completedAt < tomorrowStart);
   const yesterday = sumSessions(sessions, (s) => s.completedAt >= yesterdayStart && s.completedAt < todayStart);
@@ -534,7 +588,7 @@ function renderStatistics() {
   const month = sumSessions(sessions, (s) => s.completedAt >= monthStart && s.completedAt < tomorrowStart);
   const total = sumSessions(sessions, () => true);
 
-  elements.statsHeading.textContent = timer.title;
+  elements.statsHeading.textContent = source.title;
   elements.statsTotalLabel.textContent = `${formatStudyTime(total)} registrados`;
   setDuration(elements.statDay, day);
   setDuration(elements.statYesterday, yesterday);
@@ -607,54 +661,48 @@ function destroyCharts() {
 
 const CHART_TITLES = { day: "Hoy, por hora", yesterday: "Ayer, por hora", week: "Últimos 7 días", month: "Este mes, por día" };
 
-// Devuelve etiquetas y minutos por cada bloque del periodo elegido
-function chartBuckets(timer) {
+function withAlpha(hex, alpha) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+// Rangos de tiempo (bloques) del periodo elegido
+function chartRanges(allSessions) {
   const now = new Date();
-  const sessions = timer.sessions;
   const todayStart = localDayStart(now).getTime();
-  const between = (a, b) => sumSessions(sessions, (s) => s.completedAt >= a && s.completedAt < b);
-  const labels = [];
-  const values = [];
+  const ranges = [];
+  const push = (label, start, end) => ranges.push({ label, start, end });
   let title = CHART_TITLES[chartPeriod] || "";
 
   if (chartPeriod === "day" || chartPeriod === "yesterday") {
     const start = chartPeriod === "day" ? todayStart : todayStart - DAY_MS;
-    for (let h = 0; h < 24; h += 1) {
-      labels.push(String(h).padStart(2, "0"));
-      values.push(between(start + h * 3_600_000, start + (h + 1) * 3_600_000));
-    }
+    for (let h = 0; h < 24; h += 1) push(String(h).padStart(2, "0"), start + h * 3_600_000, start + (h + 1) * 3_600_000);
   } else if (chartPeriod === "week") {
-    for (let offset = 6; offset >= 0; offset -= 1) {
-      const d = new Date(todayStart - offset * DAY_MS);
-      labels.push(d.toLocaleDateString("es-BO", { weekday: "short", day: "numeric" }));
-      values.push(between(d.getTime(), new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime()));
+    for (let o = 6; o >= 0; o -= 1) {
+      const d = new Date(todayStart - o * DAY_MS);
+      push(d.toLocaleDateString("es-BO", { weekday: "short", day: "numeric" }), d.getTime(), new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime());
     }
   } else if (chartPeriod === "month") {
     const y = now.getFullYear();
     const m = now.getMonth();
-    for (let day = 1; day <= new Date(y, m + 1, 0).getDate(); day += 1) {
-      labels.push(String(day));
-      values.push(between(new Date(y, m, day).getTime(), new Date(y, m, day + 1).getTime()));
-    }
+    for (let day = 1; day <= new Date(y, m + 1, 0).getDate(); day += 1) push(String(day), new Date(y, m, day).getTime(), new Date(y, m, day + 1).getTime());
   } else {
     let first = new Date(now.getFullYear(), 0, 1);
     let count = 12;
     if (chartScope === "total") {
-      const earliest = sessions.length ? Math.min(...sessions.map((s) => s.completedAt)) : now.getTime();
+      const earliest = allSessions.length ? Math.min(...allSessions.map((x) => x.completedAt)) : now.getTime();
       const e = new Date(earliest);
       first = new Date(e.getFullYear(), e.getMonth(), 1);
       count = (now.getFullYear() - first.getFullYear()) * 12 + now.getMonth() - first.getMonth() + 1;
     }
     title = chartScope === "total" ? "Total desde el inicio" : `Año ${now.getFullYear()}`;
     for (let i = 0; i < count; i += 1) {
-      const start = new Date(first.getFullYear(), first.getMonth() + i, 1);
-      const end = new Date(first.getFullYear(), first.getMonth() + i + 1, 1);
-      const name = start.toLocaleDateString("es-BO", { month: "short" });
-      labels.push(chartScope === "total" ? `${name} ${String(start.getFullYear()).slice(2)}` : name);
-      values.push(between(start.getTime(), end.getTime()));
+      const st = new Date(first.getFullYear(), first.getMonth() + i, 1);
+      const name = st.toLocaleDateString("es-BO", { month: "short" });
+      push(chartScope === "total" ? `${name} ${String(st.getFullYear()).slice(2)}` : name, st.getTime(), new Date(st.getFullYear(), st.getMonth() + 1, 1).getTime());
     }
   }
-  return { labels, values, title, total: values.reduce((a, b) => a + b, 0) };
+  return { ranges, title };
 }
 
 function syncChartControls() {
@@ -664,53 +712,74 @@ function syncChartControls() {
   if (elements.chartScope) elements.chartScope.hidden = chartPeriod !== "year";
 }
 
+function renderLegend(defs) {
+  const box = elements.chartLegend;
+  if (!box) return;
+  box.replaceChildren();
+  box.hidden = !syncMode;
+  if (!syncMode) return;
+  defs.forEach((d) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `legend-chip${hiddenSeries.has(d.id) ? " is-off" : ""}`;
+    chip.dataset.series = d.id;
+    chip.style.setProperty("--tag", d.color);
+    chip.setAttribute("aria-pressed", String(!hiddenSeries.has(d.id)));
+    const dot = document.createElement("i");
+    const name = document.createElement("span");
+    name.textContent = d.name;
+    chip.append(dot, name);
+    box.append(chip);
+  });
+}
+
 function renderCharts() {
-  const timer = selectedTimer();
-  if (!timer || !window.Chart || !elements.statsChart) return;
+  const source = statsSource();
+  if (!source || !window.Chart || !elements.statsChart) return;
   destroyCharts();
   syncChartControls();
 
-  const { labels, values, title, total } = chartBuckets(timer);
-  elements.chartTitle.textContent = title;
-  elements.chartTotal.textContent = formatStudyTime(total);
-
   const colors = chartColors();
-  const asHours = Math.max(0, ...values) >= 120;
-  const data = values.map((v) => Number((asHours ? v / 60 : v).toFixed(2)));
+  const { ranges, title } = chartRanges(source.sessions);
+  const valuesOf = (sessions) => ranges.map((r) => sumSessions(sessions, (x) => x.completedAt >= r.start && x.completedAt < r.end));
+
+  const defs = syncMode
+    ? [...timers.map((t) => ({ id: t.id, name: t.title, color: timerColor(t), sessions: t.sessions, total: false })),
+       { id: "total", name: "Total", color: colors.accent, sessions: source.sessions, total: true }]
+    : [{ id: "single", name: source.title, color: colors.accent, sessions: source.sessions, total: true }];
+  renderLegend(defs);
+
+  const series = defs.filter((d) => !hiddenSeries.has(d.id)).map((d) => ({ ...d, values: valuesOf(d.sessions) }));
+  elements.chartTitle.textContent = title;
+  elements.chartTotal.textContent = formatStudyTime(valuesOf(source.sessions).reduce((a, b) => a + b, 0));
+
+  const asHours = Math.max(0, ...series.flatMap((d) => d.values)) >= 120;
   const isLine = chartType === "line";
+  const labels = ranges.map((r) => r.label);
+
+  const datasets = series.map((d) => {
+    const ghost = syncMode && !d.total;
+    const base = { label: d.name, data: d.values.map((v) => Number((asHours ? v / 60 : v).toFixed(2))) };
+    return isLine
+      ? { ...base, borderColor: d.color, backgroundColor: ghost ? "transparent" : withAlpha(d.color, 0.15), fill: !ghost, tension: 0.35,
+          borderWidth: ghost ? 2 : 3, borderDash: ghost ? [6, 4] : [], pointRadius: labels.length > 16 ? 0 : ghost ? 2 : 3, pointBackgroundColor: d.color }
+      : { ...base, backgroundColor: ghost ? withAlpha(d.color, 0.3) : d.color, borderColor: d.color, borderWidth: ghost ? 1.5 : 0, borderRadius: 6, maxBarThickness: 28 };
+  });
 
   chartInstance = new window.Chart(elements.statsChart, {
     type: isLine ? "line" : "bar",
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: isLine ? colors.area : colors.accent,
-        borderColor: colors.accent,
-        fill: isLine,
-        tension: 0.35,
-        borderRadius: 6,
-        maxBarThickness: 28,
-        pointRadius: labels.length > 16 ? 0 : 3,
-        borderWidth: 2.5
-      }]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 250 },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (c) => formatStudyTime(c.parsed.y * (asHours ? 60 : 1)) } }
+        tooltip: { callbacks: { label: (c) => `${syncMode ? `${c.dataset.label}: ` : ""}${formatStudyTime(c.parsed.y * (asHours ? 60 : 1))}` } }
       },
       scales: {
         x: { grid: { display: false }, ticks: { color: colors.text, font: { size: 11 }, maxRotation: 0 }, border: { display: false } },
-        y: {
-          beginAtZero: true,
-          grid: { color: colors.grid },
-          ticks: { color: colors.text, callback: (v) => `${v}${asHours ? "h" : "m"}`, font: { size: 11 } },
-          border: { display: false }
-        }
+        y: { beginAtZero: true, grid: { color: colors.grid }, ticks: { color: colors.text, callback: (v) => `${v}${asHours ? "h" : "m"}`, font: { size: 11 } }, border: { display: false } }
       }
     }
   });
@@ -877,12 +946,12 @@ function renderYearMonths(sessions, year) {
 }
 
 function openBreakdownModal(period) {
-  const timer = selectedTimer();
-  if (!timer) return;
+  const source = statsSource();
+  if (!source) return;
 
   const now = new Date();
   const todayStart = localDayStart(now).getTime();
-  const sessions = timer.sessions;
+  const sessions = source.sessions;
 
   elements.breakdownList.replaceChildren();
 
@@ -946,8 +1015,56 @@ function openTimerEditor(timer = null) {
   elements.focusMinutes.value = timer?.focusMinutes || DEFAULT_TIMER.focusMinutes;
   elements.breakMinutes.value = timer?.breakMinutes || DEFAULT_TIMER.breakMinutes;
   elements.timerPriority.value = timer?.priority || DEFAULT_TIMER.priority;
+  editorTags = [...(timer?.tags || [])];
+  const used = timers.filter((t) => t.id !== timer?.id).map(timerColor);
+  editorColor = timer?.color || TAG_COLORS.find((c) => !used.includes(c)) || TAG_COLORS[0];
+  elements.tagInput.value = "";
+  renderColorPicker();
+  renderEditorTags();
   openModal(elements.timerModal);
   window.setTimeout(() => elements.timerName.focus(), 50);
+}
+
+function renderColorPicker() {
+  if (!elements.timerColors) return;
+  elements.timerColors.replaceChildren();
+  TAG_COLORS.forEach((color) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = `color-swatch${color === editorColor ? " is-active" : ""}`;
+    b.style.background = color;
+    b.setAttribute("aria-label", `Color ${color}`);
+    b.setAttribute("aria-pressed", String(color === editorColor));
+    b.addEventListener("click", () => { editorColor = color; renderColorPicker(); renderEditorTags(); });
+    elements.timerColors.append(b);
+  });
+}
+
+function renderEditorTags() {
+  if (!elements.tagChips) return;
+  elements.tagChips.replaceChildren();
+  editorTags.forEach((name, i) => {
+    const chip = document.createElement("span");
+    chip.className = "tag-chip";
+    chip.style.setProperty("--tag", editorColor);
+    chip.textContent = name;
+    const x = document.createElement("button");
+    x.type = "button";
+    x.textContent = "×";
+    x.setAttribute("aria-label", `Quitar ${name}`);
+    x.addEventListener("click", () => { editorTags.splice(i, 1); renderEditorTags(); });
+    chip.append(x);
+    elements.tagChips.append(chip);
+  });
+}
+
+function addTagFromInput() {
+  const raw = elements.tagInput.value.replace(/,/g, "").trim().slice(0, MAX_TAG_LENGTH);
+  elements.tagInput.value = "";
+  if (!raw || editorTags.some((t) => t.toLowerCase() === raw.toLowerCase())) return;
+  if (editorTags.length >= MAX_TAGS) { editorMessage(`Máximo ${MAX_TAGS} etiquetas por temporizador.`); return; }
+  editorTags.push(raw);
+  renderEditorTags();
 }
 
 function editorMessage(message) {
@@ -982,7 +1099,7 @@ async function saveTimer(event) {
   try {
     const now = Date.now();
     if (existing) {
-      await updateDoc(timerReference(existing.id), { title, focusMinutes, breakMinutes, priority, updatedAt: now });
+      await updateDoc(timerReference(existing.id), { title, focusMinutes, breakMinutes, priority, tags: editorTags, color: editorColor, updatedAt: now });
     } else {
       const reference = doc(collection(db, "users", currentUser.uid, "timers"));
       await setDoc(reference, {
@@ -990,6 +1107,8 @@ async function saveTimer(event) {
         focusMinutes,
         breakMinutes,
         priority,
+        tags: editorTags,
+        color: editorColor,
         sessions: [],
         phase: "focus",
         status: "idle",
@@ -1357,6 +1476,12 @@ function initEvents() {
   elements.emptyAddTimer?.addEventListener("click", () => openTimerEditor());
   elements.editActiveTimer?.addEventListener("click", () => openTimerEditor(selectedTimer()));
   elements.timerForm?.addEventListener("submit", saveTimer);
+  elements.tagInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTagFromInput(); }
+    else if (e.key === "Backspace" && !elements.tagInput.value && editorTags.length) { editorTags.pop(); renderEditorTags(); }
+  });
+  elements.tagInput?.addEventListener("blur", addTagFromInput);
+  elements.syncToggle?.addEventListener("click", () => { syncMode = !syncMode; renderStatistics(); });
   elements.deleteTimer?.addEventListener("click", removeTimer);
 
   // Controles del temporizador
@@ -1391,11 +1516,15 @@ function initEvents() {
 
   // Controles de gráficos (periodo, tipo y alcance)
   elements.statsChartsView?.addEventListener("click", (e) => {
-    const btn = e.target.closest("[data-chart-period], [data-chart-type], [data-chart-scope]");
+    const btn = e.target.closest("[data-chart-period], [data-chart-type], [data-chart-scope], [data-series]");
     if (!btn) return;
     if (btn.dataset.chartPeriod) chartPeriod = btn.dataset.chartPeriod;
     if (btn.dataset.chartType) chartType = btn.dataset.chartType;
     if (btn.dataset.chartScope) chartScope = btn.dataset.chartScope;
+    if (btn.dataset.series) {
+      const id = btn.dataset.series;
+      if (hiddenSeries.has(id)) hiddenSeries.delete(id); else hiddenSeries.add(id);
+    }
     renderCharts();
   });
 

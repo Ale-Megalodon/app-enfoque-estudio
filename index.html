@@ -116,9 +116,14 @@
             <p>Selecciona o crea un temporizador para consultar sus estadísticas.</p>
           </div>
           <div id="stats-workspace" hidden>
+            <button id="sync-toggle" class="sync-banner" type="button" aria-pressed="false">
+              <span class="sync-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8M18.5 2v4h-4M5.5 22v-4h4"/></svg></span>
+              <span class="sync-text"><strong>Sincronización</strong><small>Suma y comparación de todos tus cronómetros</small></span>
+              <span class="sync-switch" aria-hidden="true"></span>
+            </button>
             <div class="workspace-heading stats-title-row">
               <div>
-                <p class="eyebrow">ESTADÍSTICAS INDIVIDUALES</p>
+                <p id="stats-eyebrow" class="eyebrow">ESTADÍSTICAS INDIVIDUALES</p>
                 <h1 id="stats-heading">Estudio profundo</h1>
                 <p>Solo las sesiones Focus terminadas cuentan en este registro.</p>
               </div>
@@ -170,6 +175,7 @@
                   <button class="chip" type="button" data-chart-scope="year">Este año</button>
                   <button class="chip" type="button" data-chart-scope="total">Total</button>
                 </div>
+                <div id="chart-legend" class="chart-legend" hidden></div>
                 <div class="chart-heading"><h2 id="chart-title">Semana</h2><strong id="chart-total">0 minutos</strong></div>
                 <div class="chart-wrap"><canvas id="stats-chart" aria-label="Gráfico de estudio"></canvas></div>
               </section>
@@ -190,6 +196,9 @@
         </div>
         <label for="timer-priority">Prioridad</label>
         <select id="timer-priority" name="priority"><option value="high">Alta</option><option value="medium" selected>Media</option><option value="low">Baja</option></select>
+        <label>Color y etiquetas <small class="label-hint">(hasta 3, mismo color)</small></label>
+        <div id="timer-colors" class="color-picker" role="group" aria-label="Color del cronómetro"></div>
+        <div class="tag-editor"><div id="tag-chips" class="tag-chips"></div><input id="tag-input" type="text" maxlength="16" placeholder="Escribe una etiqueta y presiona Enter" autocomplete="off" enterkeyhint="done" /></div>
         <p id="timer-form-message" class="form-message" role="alert" hidden></p>
         <div class="modal-actions"><button id="delete-timer" class="button button-danger" type="button" hidden>Eliminar</button><span></span><button class="button button-secondary" type="button" data-close="timer-modal">Cancelar</button><button id="save-timer" class="button button-primary" type="submit">Guardar</button></div>
       </form>
