@@ -33,6 +33,7 @@
         <nav class="main-nav" aria-label="Navegación principal">
           <button class="nav-button is-active" type="button" data-view="timer">Temporizadores</button>
           <button class="nav-button" type="button" data-view="stats">Estadísticas</button>
+          <button class="nav-button" type="button" data-view="aquarium">Acuario</button>
         </nav>
         <div class="topbar-actions">
           <button id="settings-button" class="icon-button" type="button" aria-label="Abrir ajustes" title="Ajustes">⚙</button>
@@ -181,6 +182,38 @@
               </section>
             </div>
           </div>
+        </section>
+
+        <section id="aquarium-view" class="workspace view" aria-labelledby="pet-name" hidden>
+          <div class="workspace-heading">
+            <div>
+              <p id="pet-level-label" class="eyebrow">NIVEL 1 DE 10</p>
+              <h1 id="pet-name">Huevito</h1>
+              <p id="pet-progress-text">0 / 1 h alimentadas</p>
+            </div>
+          </div>
+
+          <div id="tank" class="tank">
+            <span class="bubble"></span><span class="bubble"></span><span class="bubble"></span><span class="bubble"></span><span class="bubble"></span>
+            <div id="shark" class="shark"><div id="shark-flip" class="shark-flip"></div></div>
+            <div class="sand"></div>
+          </div>
+
+          <div class="pet-progress"><div id="pet-bar" class="pet-bar"></div></div>
+
+          <div class="meat-panel">
+            <div>
+              <p class="eyebrow">DESPENSA</p>
+              <strong id="meat-count" class="meat-count">0 trozos 🥩</strong>
+              <small id="meat-hint">Cada hora neta de Focus da 1 trozo.</small>
+            </div>
+            <div class="meat-actions">
+              <button id="feed-one" class="button button-secondary" type="button">Dar 1 trozo</button>
+              <button id="feed-all" class="button button-primary" type="button">Lanzar todo</button>
+            </div>
+          </div>
+
+          <div id="pet-levels" class="pet-levels"></div>
         </section>
       </main>
     </div>

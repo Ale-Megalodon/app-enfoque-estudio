@@ -1,5 +1,5 @@
 /* ==========================================================================
-   APP DE ESTUDIO – TEMPORIZADORES POMODORO CON FIREBASE
+   APP DE ESTUDIO – TEMPORIZADORES POMODORO CON FIREBASE + MASCOTA TIBURÓN
    Índice:
    1. Imports de Firebase
    2. Configuración y constantes
@@ -15,6 +15,7 @@
    12. Acciones del temporizador (iniciar, pausar, terminar, expirar)
    13. Ticker
    14. Ajustes (tema, volumen, notificaciones)
+   14b. Mascota: tiburón
    15. Firestore listeners
    16. Eventos de interfaz
    17. Autenticación e inicialización
@@ -36,6 +37,7 @@ import {
   deleteDoc,
   doc,
   getFirestore,
+  increment,
   onSnapshot,
   runTransaction,
   setDoc,
@@ -80,6 +82,7 @@ const elements = {
   authError: document.querySelector("#auth-error"),
 
   // Usuario / navegación
+  layout: document.querySelector(".layout"),
   userName: document.querySelector("#user-name"),
   userInitial: document.querySelector("#user-initial"),
   userPhoto: document.querySelector("#user-photo"),
@@ -89,6 +92,7 @@ const elements = {
   navButtons: [...document.querySelectorAll(".nav-button")],
   timerView: document.querySelector("#timer-view"),
   statsView: document.querySelector("#stats-view"),
+  aquariumView: document.querySelector("#aquarium-view"),
 
   // Lista de temporizadores
   timerList: document.querySelector("#timer-list"),
@@ -142,6 +146,20 @@ const elements = {
   chartTitle: document.querySelector("#chart-title"),
   chartTotal: document.querySelector("#chart-total"),
   chartScope: document.querySelector("#chart-scope"),
+
+  // Acuario / mascota
+  tank: document.querySelector("#tank"),
+  shark: document.querySelector("#shark"),
+  sharkFlip: document.querySelector("#shark-flip"),
+  petName: document.querySelector("#pet-name"),
+  petLevelLabel: document.querySelector("#pet-level-label"),
+  petProgressText: document.querySelector("#pet-progress-text"),
+  petBar: document.querySelector("#pet-bar"),
+  meatCount: document.querySelector("#meat-count"),
+  meatHint: document.querySelector("#meat-hint"),
+  feedOne: document.querySelector("#feed-one"),
+  feedAll: document.querySelector("#feed-all"),
+  petLevels: document.querySelector("#pet-levels"),
 
   // Modal: editor de temporizador
   timerModal: document.querySelector("#timer-modal"),
@@ -977,11 +995,13 @@ function selectTimer(timerId) {
 }
 
 function showView(view) {
-  const isTimer = view === "timer";
-  if (elements.timerView) elements.timerView.hidden = !isTimer;
-  if (elements.statsView) elements.statsView.hidden = isTimer;
-  elements.navButtons.forEach((button) => button.classList.toggle("is-active", button.dataset.view === view));
-  if (!isTimer) renderStatistics();
+  elements.timerView.hidden = view !== "timer";
+  elements.statsView.hidden = view !== "stats";
+  elements.aquariumView.hidden = view !== "aquarium";
+  elements.layout.classList.toggle("is-aquarium", view === "aquarium");
+  elements.navButtons.forEach((b) => b.classList.toggle("is-active", b.dataset.view === view));
+  if (view === "stats") renderStatistics();
+  if (view === "aquarium") { renderAquarium(true); startRoaming(); } else stopRoaming();
 }
 
 function showToast(message, icon = "✓") {
@@ -1270,6 +1290,10 @@ function finishTimer() {
       activeDurationMs: null,
       updatedAt: finishedAt
     });
+    // Horas netas para la mascota (independientes del temporizador)
+    if (cloudRegisteredMinutes > 0) {
+      transaction.set(petReference(), { earnedMinutes: increment(cloudRegisteredMinutes) }, { merge: true });
+    }
     return true;
   });
   syncTimerInBackground(timer.id, previous, task, "No se pudo terminar la sesión.");
@@ -1311,6 +1335,10 @@ async function completeExpiredTimer(timer) {
         activeDurationMs: null,
         updatedAt: now
       });
+      // Horas netas para la mascota (independientes del temporizador)
+      if (completedPhase === "focus") {
+        transaction.set(petReference(), { earnedMinutes: increment(current.activeDurationMs / 60_000) }, { merge: true });
+      }
       return { title: current.title, phase: completedPhase };
     });
 
@@ -1403,11 +1431,179 @@ async function requestNotificationPermission() {
 }
 
 /* ==========================================================================
+   14b. MASCOTA: TIBURÓN (progreso independiente de los temporizadores)
+   ========================================================================== */
+const SHARK_LEVELS = [
+  { name: "Huevito", hours: 0 }, { name: "Cría", hours: 1 }, { name: "Tiburoncito", hours: 5 },
+  { name: "Joven", hours: 15 }, { name: "Explorador", hours: 35 }, { name: "Cazador", hours: 70 },
+  { name: "Guardián", hours: 120 }, { name: "Gran blanco", hours: 200 },
+  { name: "Rey del arrecife", hours: 320 }, { name: "Megalodón", hours: 500 }
+];
+const SHARK_COLORS = ["#f5e6c8", "#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7", "#2563eb", "#4f46e5", "#64748b", "#7c3aed", "#1e293b"];
+
+let pet = { earnedMinutes: 0, meatFed: 0 };
+let petReady = false, timersReady = false, petExists = false, petInitStarted = false;
+let unsubscribePet = null, lastPetLevel = null, renderedPetLevel = -1, roamId = null;
+
+function petReference() { return doc(db, "users", currentUser.uid, "pet", "main"); }
+
+function petStats() {
+  const earned = Math.max(0, numeric(pet.earnedMinutes, 0));
+  const fed = Math.max(0, Math.floor(numeric(pet.meatFed, 0)));
+  const available = Math.max(0, Math.floor(earned / 60) - fed);
+  let idx = 0;
+  SHARK_LEVELS.forEach((l, i) => { if (fed >= l.hours) idx = i; });
+  return { earned, fed, available, idx, level: SHARK_LEVELS[idx], next: SHARK_LEVELS[idx + 1] || null, hourFraction: (earned % 60) / 60 };
+}
+
+// Migración única: si no existe la mascota, parte de tus sesiones actuales
+function maybeInitPet() {
+  if (!petReady || !timersReady || petExists || petInitStarted || !currentUser) return;
+  petInitStarted = true;
+  const total = timers.reduce((sum, t) => sum + sumSessions(t.sessions, () => true), 0);
+  setDoc(petReference(), { earnedMinutes: total, meatFed: 0, createdAt: Date.now() }, { merge: true })
+    .catch((e) => { petInitStarted = false; console.error(e); });
+}
+
+function sharkSvg(idx) {
+  if (idx === 0) {
+    return `<svg viewBox="0 0 100 130" class="shark-svg egg-svg" role="img" aria-label="Huevito"><ellipse cx="50" cy="70" rx="38" ry="52" fill="#f5e6c8"/><circle cx="36" cy="55" r="6" fill="#e2c99a"/><circle cx="62" cy="82" r="8" fill="#e2c99a"/><circle cx="58" cy="44" r="4" fill="#e2c99a"/></svg>`;
+  }
+  const c = SHARK_COLORS[idx];
+  const crown = idx >= 8 ? `<path d="M150 36 L154 20 L160 29 L166 18 L172 36Z" fill="#fbbf24"/>` : "";
+  const scars = idx >= 5 ? `<path d="M120 50 l14 10 M126 46 l14 10" stroke="#fff" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>` : "";
+  return `<svg viewBox="0 0 220 110" class="shark-svg" role="img" aria-label="${SHARK_LEVELS[idx].name}">
+    <g class="shark-tail"><path d="M40 55 L4 18 Q20 55 4 92 Z" fill="${c}"/></g>
+    <path d="M30 55 Q80 8 150 30 Q200 45 214 58 Q190 84 140 88 Q70 98 30 55Z" fill="${c}"/>
+    <path d="M60 78 Q120 94 196 66 Q150 88 100 88Z" fill="#eaf6ff"/>
+    <path d="M95 30 L116 0 L136 32Z" fill="${c}"/>
+    <path d="M120 82 L98 106 L146 86Z" fill="${c}" style="filter:brightness(.8)"/>
+    <path d="M140 56 q4 8 0 16 M148 55 q4 8 0 16" stroke="#0b1b33" stroke-opacity=".25" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <circle cx="180" cy="52" r="4.5" fill="#0b1b33"/><circle cx="181.5" cy="50.5" r="1.4" fill="#fff"/>
+    ${scars}${crown}</svg>`;
+}
+
+function renderAquarium(force = false) {
+  if (!elements.aquariumView || !currentUser) return;
+  const s = petStats();
+
+  if (force || renderedPetLevel !== s.idx) {
+    renderedPetLevel = s.idx;
+    elements.sharkFlip.innerHTML = sharkSvg(s.idx);
+    elements.shark.style.width = `${s.idx === 0 ? 70 : 60 + s.idx * 22}px`;
+    roamShark();
+  }
+
+  elements.petName.textContent = s.level.name;
+  elements.petLevelLabel.textContent = `NIVEL ${s.idx + 1} DE ${SHARK_LEVELS.length}`;
+  if (s.next) {
+    const pct = ((s.fed - s.level.hours) / (s.next.hours - s.level.hours)) * 100;
+    elements.petBar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+    elements.petProgressText.textContent = `${s.fed} / ${s.next.hours} h alimentadas · siguiente: ${s.next.name}`;
+  } else {
+    elements.petBar.style.width = "100%";
+    elements.petProgressText.textContent = `${s.fed} h alimentadas · ¡nivel máximo!`;
+  }
+
+  elements.meatCount.textContent = `${s.available} ${s.available === 1 ? "trozo" : "trozos"} 🥩`;
+  const minsLeft = Math.max(1, Math.ceil((1 - s.hourFraction) * 60));
+  elements.meatHint.textContent = `Próximo trozo en ~${minsLeft} min de Focus.`;
+  elements.feedOne.disabled = s.available < 1;
+  elements.feedAll.disabled = s.available < 1;
+
+  elements.petLevels.replaceChildren();
+  SHARK_LEVELS.forEach((l, i) => {
+    const item = document.createElement("div");
+    item.className = `pet-level${i < s.idx ? " is-done" : i === s.idx ? " is-current" : ""}`;
+    item.innerHTML = "<strong></strong><span></span>";
+    item.querySelector("strong").textContent = `${i + 1}. ${l.name}`;
+    item.querySelector("span").textContent = `${l.hours} h`;
+    elements.petLevels.append(item);
+  });
+}
+
+/* ---- Movimiento por la pecera ---- */
+function roamShark(targetX, targetY) {
+  const tank = elements.tank, shark = elements.shark;
+  if (!tank || !shark || !tank.clientWidth) return;
+  const maxX = Math.max(0, tank.clientWidth - shark.offsetWidth);
+  const maxY = Math.max(0, tank.clientHeight - shark.offsetHeight - 30);
+  const curX = parseFloat(shark.style.left) || 0;
+  const curY = parseFloat(shark.style.top) || 0;
+  let x, y;
+  if (renderedPetLevel === 0) { x = maxX / 2; y = maxY; }           // el huevo reposa en el fondo
+  else if (targetX !== undefined) {
+    x = Math.min(maxX, Math.max(0, targetX - shark.offsetWidth / 2));
+    y = Math.min(maxY, Math.max(0, targetY - shark.offsetHeight / 2));
+  } else { x = Math.random() * maxX; y = Math.random() * maxY * 0.85; }
+  shark.classList.toggle("face-left", x < curX - 4 ? true : x > curX + 4 ? false : shark.classList.contains("face-left"));
+  const dist = Math.hypot(x - curX, y - curY);
+  shark.style.transitionDuration = `${Math.min(6, Math.max(1.4, dist / 70))}s`;
+  shark.style.left = `${x}px`;
+  shark.style.top = `${y}px`;
+}
+
+function startRoaming() {
+  stopRoaming();
+  window.setTimeout(roamShark, 100);
+  roamId = window.setInterval(() => roamShark(), 5000);
+}
+function stopRoaming() { if (roamId) window.clearInterval(roamId); roamId = null; }
+
+/* ---- Alimentar ---- */
+function dropMeat() {
+  const tank = elements.tank;
+  if (!tank || !tank.clientWidth) return;
+  const meat = document.createElement("span");
+  meat.className = "meat-drop";
+  meat.textContent = "🥩";
+  const x = 30 + Math.random() * Math.max(1, tank.clientWidth - 60);
+  meat.style.left = `${x}px`;
+  tank.append(meat);
+  window.setTimeout(() => roamShark(x, tank.clientHeight * 0.6), 500);
+  window.setTimeout(() => meat.remove(), 1700);
+}
+
+async function feedShark(all) {
+  const s = petStats();
+  if (s.available < 1) { showToast("Aún no tienes carne. Cada hora neta de Focus da 1 trozo.", "!"); return; }
+  const amount = all ? s.available : 1;
+  for (let i = 0; i < Math.min(amount, 10); i += 1) window.setTimeout(dropMeat, i * 250);
+  try {
+    await setDoc(petReference(), { meatFed: increment(amount) }, { merge: true });
+  } catch (error) {
+    showToast("No se pudo alimentar al tiburón.", "!");
+    console.error(error);
+  }
+}
+
+function listenToPet(user) {
+  if (unsubscribePet) unsubscribePet();
+  unsubscribePet = onSnapshot(doc(db, "users", user.uid, "pet", "main"), (snap) => {
+    petReady = true;
+    petExists = snap.exists();
+    const d = snap.exists() ? snap.data() : {};
+    pet = { earnedMinutes: numeric(d.earnedMinutes, 0), meatFed: numeric(d.meatFed, 0) };
+    maybeInitPet();
+    const idx = petStats().idx;
+    if (lastPetLevel !== null && idx > lastPetLevel) {
+      playAlarm();
+      showToast(idx === 1 ? "¡Tu huevito eclosionó! 🦈" : `¡Evolucionó a ${SHARK_LEVELS[idx].name}! 🦈`);
+    }
+    lastPetLevel = idx;
+    renderAquarium();
+  });
+}
+
+/* ==========================================================================
    15. FIRESTORE LISTENERS
    ========================================================================== */
 function listenToUserData(user) {
   if (unsubscribeTimers) unsubscribeTimers();
   if (unsubscribeProfile) unsubscribeProfile();
+
+  timersReady = false;
+  listenToPet(user);
 
   // Perfil / preferencias
   unsubscribeProfile = onSnapshot(userReference(), (docSnap) => {
@@ -1444,6 +1640,8 @@ function listenToUserData(user) {
       selectedTimerId = timers[0]?.id || null;
     }
 
+    timersReady = true;
+    maybeInitPet();
     renderAll();
     startTicker();
   });
@@ -1488,6 +1686,10 @@ function initEvents() {
   elements.startButton?.addEventListener("click", startTimer);
   elements.pauseButton?.addEventListener("click", togglePause);
   elements.finishButton?.addEventListener("click", finishTimer);
+
+  // Mascota
+  elements.feedOne?.addEventListener("click", () => feedShark(false));
+  elements.feedAll?.addEventListener("click", () => feedShark(true));
 
   // Ajustes
   elements.userButton?.addEventListener("click", () => openModal(elements.settingsModal));
@@ -1565,10 +1767,16 @@ onAuthStateChanged(auth, (user) => {
   } else {
     if (unsubscribeTimers) unsubscribeTimers();
     if (unsubscribeProfile) unsubscribeProfile();
+    if (unsubscribePet) unsubscribePet();
     if (tickerId) window.clearInterval(tickerId);
     tickerId = null;
+    stopRoaming();
     timers = [];
     selectedTimerId = null;
+    pet = { earnedMinutes: 0, meatFed: 0 };
+    petReady = timersReady = petExists = petInitStarted = false;
+    lastPetLevel = null;
+    renderedPetLevel = -1;
     destroyCharts();
 
     if (elements.authView) elements.authView.hidden = false;
