@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: focus-cloud
+    runtime: static
+    buildCommand: ""
+    staticPublishPath: .
