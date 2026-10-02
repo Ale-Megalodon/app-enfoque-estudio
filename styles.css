@@ -314,29 +314,30 @@ input:focus, select:focus { border-color: var(--accent); outline: 0; }
 .meat-panel small { color: var(--subtle); font-size: .74rem; }
 .meat-actions { display: flex; gap: 8px; }
 .button:disabled { opacity: .45; cursor: not-allowed; }
-.pet-levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 18px; }
-.pet-level { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: var(--surface-muted); opacity: .55; }
-.pet-level strong { font-size: .82rem; } .pet-level span { color: var(--subtle); font-size: .7rem; }
-.pet-level.is-done { opacity: 1; }
-.pet-level.is-current { opacity: 1; box-shadow: inset 0 0 0 2px var(--accent); }
 
 
 /* ===== ÍCONOS DE NAVEGACIÓN (solo visibles en móvil) ===== */
 .nav-icon { display: none; width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-/* ===== VISTA PREVIA DE NIVELES ===== */
-.preview-banner { position: absolute; z-index: 4; top: 12px; right: 12px; left: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 16px; border-radius: 999px; color: #fff; background: rgba(11,27,51,.66); backdrop-filter: blur(6px); font-size: .76rem; font-weight: 700; line-height: 1.35; }
-.preview-banner button { flex: 0 0 auto; padding: 8px 16px; border: 0; border-radius: 999px; color: #0b1b33; background: #fff; font-size: .74rem; font-weight: 800; }
+/* ===== REQUISITOS DE NIVEL (lista simple) ===== */
 .levels-title { margin: 22px 0 10px; }
-.pet-level { position: relative; align-items: stretch; border: 0; color: var(--text); text-align: left; opacity: 1; cursor: pointer; transition: transform 140ms ease; }
-.pet-level:active { transform: scale(.97); }
-.pet-thumb { display: grid; height: 64px; margin-bottom: 6px; place-items: center; border-radius: 10px; background: linear-gradient(180deg, #bae6fd, #38bdf8); }
-.pet-thumb .shark-svg { width: auto; max-width: 86%; height: 80%; filter: none; }
-.pet-thumb .shark-tail, .pet-thumb .egg-svg { animation: none; }
-.pet-level.is-locked .pet-thumb { background: linear-gradient(180deg, #e2e8f0, #cbd5e1); }
-.pet-level.is-locked strong, .pet-level.is-locked span { color: var(--subtle); }
-.pet-level.is-previewing { box-shadow: inset 0 0 0 2px var(--accent); }
-.pet-lock { position: absolute; top: 18px; right: 20px; font-size: .8rem; }
+.pet-levels-simple { display: grid; gap: 8px; }
+.pet-levels-simple .pet-level { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-radius: 14px; background: var(--surface-muted); opacity: 1; cursor: default; }
+.pet-levels-simple .pet-level strong { font-size: .86rem; }
+.pet-levels-simple .pet-level span { color: var(--subtle); font-size: .78rem; font-weight: 700; }
+.pet-levels-simple .pet-level.is-done { opacity: .7; }
+.pet-levels-simple .pet-level.is-current { box-shadow: inset 0 0 0 2px var(--accent); }
+.pet-levels-simple .pet-level.is-locked { opacity: .55; }
+.tank { cursor: pointer; }
+
+/* ===== SUBISTE DE NIVEL ===== */
+.levelup-card { text-align: center; }
+.levelup-header h2 { margin: 0 0 6px; font-size: 1.8rem; letter-spacing: -.03em; }
+.levelup-image-container { display: grid; place-items: center; margin: 18px 0 10px; padding: 26px 16px; border-radius: 22px; background: linear-gradient(180deg, #7dd3fc 0%, #0ea5e9 60%, #075985 100%); }
+.levelup-image-container .shark-svg { width: min(78%, 260px); animation: levelpop .7s cubic-bezier(.2,1.4,.4,1) both; }
+.levelup-image-container .egg-svg { width: 90px; }
+.levelup-desc { margin: 14px 0 20px; color: var(--muted); font-size: .95rem; font-weight: 600; }
+@keyframes levelpop { from { transform: scale(.2) rotate(-12deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
 
 /* ===== MÓVIL (≤700px): interfaz estilo app (barra inferior + hojas) ===== */
 @media (max-width: 700px) {
@@ -410,9 +411,7 @@ input:focus, select:focus { border-color: var(--accent); outline: 0; }
   #aquarium-view .workspace-heading { order: 2; margin: 0; }
   #aquarium-view .pet-progress { order: 3; margin: 0; }
   #aquarium-view .levels-title { order: 4; margin: 6px 0 -4px; }
-  #aquarium-view .pet-levels { order: 5; display: flex; margin: 0 -16px; padding: 2px 16px 8px; overflow-x: auto; scrollbar-width: none; }
-  #aquarium-view .pet-levels::-webkit-scrollbar { display: none; }
-  #aquarium-view .pet-level { flex: 0 0 112px; }
+  #aquarium-view .pet-levels-simple { order: 5; }
   .layout.is-aquarium { padding-bottom: calc(var(--nav-h) + 170px); }
   .meat-panel { position: fixed; z-index: 5; right: 0; bottom: var(--nav-h); left: 0; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; padding: 14px 16px; border-radius: 24px 24px 0 0; box-shadow: 0 -10px 30px rgba(11,27,51,.12); }
   .meat-panel .eyebrow { display: none; }

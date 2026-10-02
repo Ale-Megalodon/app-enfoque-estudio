@@ -70,6 +70,7 @@ const DAY_MS = 86_400_000;
 const TAG_COLORS = ["#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#f97316", "#6366f1"];
 const MAX_TAGS = 3;
 const MAX_TAG_LENGTH = 16;
+const BREAK_MIN_STUDY_MINUTES = 5;   // solo se ofrece descanso si el estudio fue MAYOR a esto
 
 /* ==========================================================================
    3. REFERENCIAS AL DOM
@@ -119,6 +120,7 @@ const elements = {
   startButton: document.querySelector("#start-button"),
   pauseButton: document.querySelector("#pause-button"),
   finishButton: document.querySelector("#finish-button"),
+  skipBreakButton: document.querySelector("#skip-break-button"),
   timerMessage: document.querySelector("#timer-message"),
 
   // Estadísticas
@@ -160,9 +162,10 @@ const elements = {
   feedOne: document.querySelector("#feed-one"),
   feedAll: document.querySelector("#feed-all"),
   petLevels: document.querySelector("#pet-levels"),
-  previewBanner: document.querySelector("#preview-banner"),
-  previewText: document.querySelector("#preview-text"),
-  previewClose: document.querySelector("#preview-close"),
+  levelupModal: document.querySelector("#levelup-modal"),
+  levelupTitle: document.querySelector("#levelup-title"),
+  levelupImage: document.querySelector("#levelup-image"),
+  levelupDesc: document.querySelector("#levelup-desc"),
 
   // Modal: editor de temporizador
   timerModal: document.querySelector("#timer-modal"),
@@ -551,7 +554,9 @@ function renderTimerWorkspace() {
   elements.timerState.textContent = statusText(timer.status);
   elements.timerState.className = `state-pill${timer.status === "running" ? " is-running" : timer.status === "paused" ? " is-paused" : ""}`;
   elements.timeDisplay.textContent = formatClock(remaining);
-  elements.timeCaption.textContent = timer.status === "idle" ? "minutos disponibles" : "tiempo restante";
+  elements.timeCaption.textContent = timer.status === "idle"
+    ? (isFocus ? "minutos disponibles" : "de descanso (no se registra)")
+    : "tiempo restante";
   elements.focusDuration.textContent = `${timer.focusMinutes} min`;
   elements.breakDuration.textContent = `${timer.breakMinutes} min`;
   elements.progressRing.style.background = `conic-gradient(${progressColor} ${degrees}deg, ${remainderColor} ${degrees}deg)`;
@@ -560,7 +565,8 @@ function renderTimerWorkspace() {
   elements.startButton.hidden = timer.status !== "idle";
   elements.pauseButton.hidden = timer.status === "idle";
   elements.finishButton.hidden = timer.status === "idle";
-  elements.startButton.textContent = isFocus ? "Iniciar Focus →" : "Iniciar Break →";
+  if (elements.skipBreakButton) elements.skipBreakButton.hidden = !(timer.status === "idle" && !isFocus);
+  elements.startButton.textContent = isFocus ? "Iniciar Focus →" : "Iniciar descanso →";
   elements.pauseButton.textContent = timer.status === "paused" ? "Reanudar" : "Pausar";
   elements.timerMessage.textContent = timer.status === "paused"
     ? "La cuenta está congelada y sincronizada."
@@ -1250,9 +1256,12 @@ function finishTimer() {
     ? { id: sessionId(), minutes: registeredMinutes, completedAt: finishedAt }
     : null;
 
+  // Descanso solo si el estudio fue mayor a 5 minutos (el descanso NUNCA se registra)
+  const offerBreak = registeredMinutes > BREAK_MIN_STUDY_MINUTES;
+
   const patch = {
     sessions: session ? [...timer.sessions, session] : timer.sessions,
-    phase: "focus",
+    phase: offerBreak ? "break" : "focus",
     status: "idle",
     endTime: null,
     remainingMs: null,
@@ -1263,7 +1272,9 @@ function finishTimer() {
   const previous = applyOptimisticTimerUpdate(timer.id, patch);
   showToast(
     timer.phase === "focus"
-      ? (registeredMinutes > 0 ? `${formatStudyTime(registeredMinutes)} registrados.` : "Sesión finalizada.")
+      ? (registeredMinutes > 0
+          ? `${formatStudyTime(registeredMinutes)} registrados.${offerBreak ? " Toca descansar." : ""}`
+          : "Sesión finalizada.")
       : "Descanso finalizado sin registrar tiempo."
   );
   setSyncStatus("Registrando…", true);
@@ -1286,7 +1297,7 @@ function finishTimer() {
 
     transaction.update(snapshot.ref, {
       sessions: cloudSession ? [...current.sessions, cloudSession] : current.sessions,
-      phase: "focus",
+      phase: cloudRegisteredMinutes > BREAK_MIN_STUDY_MINUTES ? "break" : "focus",
       status: "idle",
       endTime: null,
       remainingMs: null,
@@ -1300,6 +1311,25 @@ function finishTimer() {
     return true;
   });
   syncTimerInBackground(timer.id, previous, task, "No se pudo terminar la sesión.");
+}
+
+function skipBreak() {
+  const timer = selectedTimer();
+  if (!timer || timer.status !== "idle" || timer.phase !== "break") return;
+
+  const patch = { phase: "focus", updatedAt: Date.now() };
+  const previous = applyOptimisticTimerUpdate(timer.id, patch);
+  setSyncStatus("Sincronizando…", true);
+
+  const task = runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(timerReference(timer.id));
+    if (!snapshot.exists()) return false;
+    const current = timerFromData(timer.id, snapshot.data());
+    if (current.status !== "idle" || current.phase !== "break") return false;
+    transaction.update(snapshot.ref, patch);
+    return true;
+  });
+  syncTimerInBackground(timer.id, previous, task, "No se pudo saltar el descanso.");
 }
 
 async function completeExpiredTimer(timer) {
@@ -1447,7 +1477,7 @@ const SHARK_COLORS = ["#f5e6c8", "#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7", "#2
 let pet = { earnedMinutes: 0, meatFed: 0 };
 let petReady = false, timersReady = false, petExists = false, petInitStarted = false;
 let unsubscribePet = null, lastPetLevel = null, renderedPetLevel = -1, roamId = null;
-let previewLevel = null, renderedLocked = false;   // vista previa de niveles
+let followUntil = 0;   // mientras sea futuro, el tiburón no nada al azar (sigue tu click)
 
 function petReference() { return doc(db, "users", currentUser.uid, "pet", "main"); }
 
@@ -1469,52 +1499,31 @@ function maybeInitPet() {
     .catch((e) => { petInitStarted = false; console.error(e); });
 }
 
-function sharkSvg(idx, locked = false) {
+function sharkSvg(idx) {
   if (idx === 0) {
     return `<svg viewBox="0 0 100 130" class="shark-svg egg-svg" role="img" aria-label="Huevito"><ellipse cx="50" cy="70" rx="38" ry="52" fill="#f5e6c8"/><circle cx="36" cy="55" r="6" fill="#e2c99a"/><circle cx="62" cy="82" r="8" fill="#e2c99a"/><circle cx="58" cy="44" r="4" fill="#e2c99a"/></svg>`;
   }
-  
-  // Nivel bloqueado: silueta gris
-  const c = locked ? "#8b96a5" : SHARK_COLORS[idx];
-  const belly = locked ? "#cfd6df" : "#eaf6ff";
-  const eye = locked ? "#4b5563" : "#0b1b33";
-  
-  // Eliminamos las cicatrices y la corona; usamos solo la base limpia
+  const c = SHARK_COLORS[idx];
   return `<svg viewBox="0 0 220 110" class="shark-svg" role="img" aria-label="${SHARK_LEVELS[idx].name}">
     <g class="shark-tail"><path d="M40 55 L4 18 Q20 55 4 92 Z" fill="${c}"/></g>
     <path d="M30 55 Q80 8 150 30 Q200 45 214 58 Q190 84 140 88 Q70 98 30 55Z" fill="${c}"/>
-    <path d="M60 78 Q120 94 196 66 Q150 88 100 88Z" fill="${belly}"/>
+    <path d="M60 78 Q120 94 196 66 Q150 88 100 88Z" fill="#eaf6ff"/>
     <path d="M95 30 L116 0 L136 32Z" fill="${c}"/>
     <path d="M120 82 L98 106 L146 86Z" fill="${c}" style="filter:brightness(.8)"/>
     <path d="M140 56 q4 8 0 16 M148 55 q4 8 0 16" stroke="#0b1b33" stroke-opacity=".25" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <circle cx="180" cy="52" r="4.5" fill="${eye}"/><circle cx="181.5" cy="50.5" r="1.4" fill="#fff"/>
+    <circle cx="180" cy="52" r="4.5" fill="#0b1b33"/><circle cx="181.5" cy="50.5" r="1.4" fill="#fff"/>
   </svg>`;
 }
+
 function renderAquarium(force = false) {
   if (!elements.aquariumView || !currentUser) return;
   const s = petStats();
 
-  if (previewLevel === s.idx) previewLevel = null;   // ya es tu nivel actual
-  const shown = previewLevel ?? s.idx;
-  const locked = shown > s.idx;
-
-  if (force || renderedPetLevel !== shown || renderedLocked !== locked) {
-    renderedPetLevel = shown;
-    renderedLocked = locked;
-    elements.sharkFlip.innerHTML = sharkSvg(shown, locked);
-    elements.shark.style.width = `${shown === 0 ? 70 : 60 + shown * 22}px`;
+  if (force || renderedPetLevel !== s.idx) {
+    renderedPetLevel = s.idx;
+    elements.sharkFlip.innerHTML = sharkSvg(s.idx);
+    elements.shark.style.width = `${s.idx === 0 ? 70 : 60 + s.idx * 22}px`;
     roamShark();
-  }
-
-  // Aviso de vista previa
-  if (elements.previewBanner) {
-    elements.previewBanner.hidden = previewLevel === null;
-    if (previewLevel !== null) {
-      const target = SHARK_LEVELS[previewLevel];
-      elements.previewText.textContent = locked
-        ? `Vista previa: ${target.name} · faltan ${Math.max(0, target.hours - s.fed)} h alimentadas`
-        : `Vista previa: ${target.name} (ya superado)`;
-    }
   }
 
   elements.petName.textContent = s.level.name;
@@ -1534,33 +1543,28 @@ function renderAquarium(force = false) {
   elements.feedOne.disabled = s.available < 1;
   elements.feedAll.disabled = s.available < 1;
 
-  // Lista de niveles: los bloqueados se ven en gris; toca uno para previsualizarlo
-  const keepScroll = elements.petLevels.scrollLeft;
+  // Requisitos: solo nivel y horas necesarias (sin previsualización)
   elements.petLevels.replaceChildren();
   SHARK_LEVELS.forEach((l, i) => {
-    const isLocked = i > s.idx;
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = `pet-level${i < s.idx ? " is-done" : i === s.idx ? " is-current" : " is-locked"}${previewLevel === i ? " is-previewing" : ""}`;
-    item.setAttribute("aria-label", `${isLocked ? "Previsualizar" : "Ver"} nivel ${i + 1}: ${l.name}`);
-    item.innerHTML = '<div class="pet-thumb"></div><strong></strong><span></span>';
-    item.querySelector(".pet-thumb").innerHTML = sharkSvg(i, isLocked);
-    item.querySelector("strong").textContent = `${i + 1}. ${l.name}`;
-    item.querySelector("span").textContent = `${l.hours} h`;
-    if (isLocked) {
-      const lock = document.createElement("span");
-      lock.className = "pet-lock";
-      lock.textContent = "🔒";
-      item.append(lock);
-    }
-    item.addEventListener("click", () => {
-      previewLevel = i === s.idx ? null : i;
-      renderAquarium();
-      elements.tank?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-    elements.petLevels.append(item);
+    const row = document.createElement("div");
+    row.className = `pet-level${i < s.idx ? " is-done" : i === s.idx ? " is-current" : " is-locked"}`;
+    const name = document.createElement("strong");
+    name.textContent = `Nivel ${i + 1} · ${l.name}`;
+    const hours = document.createElement("span");
+    hours.textContent = i < s.idx ? `${l.hours} h ✓` : `${l.hours} h`;
+    row.append(name, hours);
+    elements.petLevels.append(row);
   });
-  elements.petLevels.scrollLeft = keepScroll;
+}
+
+/* ---- Pantalla "Subiste de nivel" ---- */
+function showLevelUp(idx) {
+  const level = SHARK_LEVELS[idx];
+  if (!level || !elements.levelupModal) return;
+  elements.levelupTitle.textContent = idx === 1 ? "¡Tu huevito eclosionó!" : "¡Subiste de nivel!";
+  elements.levelupImage.innerHTML = sharkSvg(idx);
+  elements.levelupDesc.textContent = `Nivel ${idx + 1} de ${SHARK_LEVELS.length}: ${level.name}`;
+  openModal(elements.levelupModal);
 }
 
 /* ---- Movimiento por la pecera ---- */
@@ -1579,15 +1583,23 @@ function roamShark(targetX, targetY) {
   } else { x = Math.random() * maxX; y = Math.random() * maxY * 0.85; }
   shark.classList.toggle("face-left", x < curX - 4 ? true : x > curX + 4 ? false : shark.classList.contains("face-left"));
   const dist = Math.hypot(x - curX, y - curY);
-  shark.style.transitionDuration = `${Math.min(6, Math.max(1.4, dist / 70))}s`;
+  shark.style.transitionDuration = `${Math.min(4, Math.max(0.8, dist / 160))}s`;
   shark.style.left = `${x}px`;
   shark.style.top = `${y}px`;
 }
 
+// El tiburón nada hacia donde haces click y se queda ahí un rato
+function followClick(event) {
+  if (renderedPetLevel === 0) return;
+  const rect = elements.tank.getBoundingClientRect();
+  followUntil = Date.now() + 8000;
+  roamShark(event.clientX - rect.left, event.clientY - rect.top);
+}
+
 function startRoaming() {
   stopRoaming();
-  window.setTimeout(roamShark, 100);
-  roamId = window.setInterval(() => roamShark(), 5000);
+  window.setTimeout(() => { if (Date.now() >= followUntil) roamShark(); }, 100);
+  roamId = window.setInterval(() => { if (Date.now() >= followUntil) roamShark(); }, 5000);
 }
 function stopRoaming() { if (roamId) window.clearInterval(roamId); roamId = null; }
 
@@ -1601,6 +1613,7 @@ function dropMeat() {
   const x = 30 + Math.random() * Math.max(1, tank.clientWidth - 60);
   meat.style.left = `${x}px`;
   tank.append(meat);
+  followUntil = Date.now() + 3000;
   window.setTimeout(() => roamShark(x, tank.clientHeight * 0.6), 500);
   window.setTimeout(() => meat.remove(), 1700);
 }
@@ -1629,7 +1642,7 @@ function listenToPet(user) {
     const idx = petStats().idx;
     if (lastPetLevel !== null && idx > lastPetLevel) {
       playAlarm();
-      showToast(idx === 1 ? "¡Tu huevito eclosionó! 🦈" : `¡Evolucionó a ${SHARK_LEVELS[idx].name}! 🦈`);
+      showLevelUp(idx);
     }
     lastPetLevel = idx;
     renderAquarium();
@@ -1727,11 +1740,12 @@ function initEvents() {
   elements.startButton?.addEventListener("click", startTimer);
   elements.pauseButton?.addEventListener("click", togglePause);
   elements.finishButton?.addEventListener("click", finishTimer);
+  elements.skipBreakButton?.addEventListener("click", skipBreak);
 
   // Mascota
   elements.feedOne?.addEventListener("click", () => feedShark(false));
   elements.feedAll?.addEventListener("click", () => feedShark(true));
-  elements.previewClose?.addEventListener("click", () => { previewLevel = null; renderAquarium(); });
+  elements.tank?.addEventListener("click", followClick);
 
   // Ajustes
   elements.userButton?.addEventListener("click", () => openModal(elements.settingsModal));
@@ -1819,8 +1833,7 @@ onAuthStateChanged(auth, (user) => {
     petReady = timersReady = petExists = petInitStarted = false;
     lastPetLevel = null;
     renderedPetLevel = -1;
-    previewLevel = null;
-    renderedLocked = false;
+    followUntil = 0;
     destroyCharts();
 
     if (elements.authView) elements.authView.hidden = false;
@@ -1829,33 +1842,3 @@ onAuthStateChanged(auth, (user) => {
 });
 
 initEvents();
-// Mascota
-  elements.feedOne?.addEventListener("click", () => feedShark(false));
-  elements.feedAll?.addEventListener("click", () => feedShark(true));
-  elements.previewClose?.addEventListener("click", () => { previewLevel = null; renderAquarium(); });
-
-  // NUEVO: Mover tiburón al hacer clic en la pecera
-  elements.tank?.addEventListener("click", (e) => {
-    // Evitamos que interactúe si hacemos clic en un botón o en la comida que cae
-    if (e.target.closest("button") || e.target.classList.contains("meat-drop")) return;
-    
-    const rect = elements.tank.getBoundingClientRect();
-    const targetX = e.clientX - rect.left;
-    const targetY = e.clientY - rect.top;
-    
-    roamShark(targetX, targetY);
-    startRoaming(); // Reinicia su nado automático para que no huya enseguida
-  });
-
-  // NUEVO: Botón para mostrar/ocultar los niveles
-  document.querySelector("#toggle-levels-btn")?.addEventListener("click", (e) => {
-    const levelsDiv = elements.petLevels;
-    levelsDiv.hidden = !levelsDiv.hidden;
-    e.target.textContent = levelsDiv.hidden ? "Previsualizar" : "Ocultar previsualizaciones";
-    
-    // Si el usuario lo cierra, cancelamos la previsualización activa
-    if (levelsDiv.hidden && previewLevel !== null) {
-      previewLevel = null;
-      renderAquarium();
-    }
-  });
