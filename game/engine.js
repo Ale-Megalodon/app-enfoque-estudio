@@ -1,15 +1,38 @@
-/* Motor del minijuego submarino (Beta 2.0)
-   Renderizado 1:1 con la app, sistema de Dash (Sprint) y anatomías avanzadas para mobs. */
+/* Motor del minijuego (Beta 3.0) 
+   Soporte para Sprites (Imágenes), Mundo 2D Híbrido, y Físicas mejoradas. */
    
 import { BP, WORLD, LEVELS, SHARK_COLORS, ZONES, GATES, POIS, TREASURES, TREASURE_PER_ZONE, CREATURES, TEXT, SAVE_VERSION } from "./data.js";
 import { createInput, createAudio, spawn, updateCreature } from "./systems.js";
 
 const rng = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const TREASURE_ICON = { coin: "🪙", gem: "💎", chest: "🏴‍☠️", relic: "🔱" };
-const BORDERS = ZONES.map((z, i) => (i && z.min > ZONES[i - 1].min ? { x: z.x - 15, y: 0, w: 30, h: WORLD.h, min: z.min, t: z.gate || "cur" } : null)).filter(Boolean);
-const ALL_GATES = [...GATES, ...BORDERS];
+const ALL_GATES = [...GATES];
 
-// Trazados SVG exactos de la mascota de la aplicación (Fidelidad 1:1)
+// GESTOR DE RECURSOS (Imágenes/Sprites)
+// Cuando tengas los .png, simplemente añade las rutas en 'urls'. El motor las dibujará automáticamente.
+const AssetManager = {
+  images: {},
+  urls: {
+    // Ejemplo: 'shark_lvl1': 'assets/shark1.png',
+    // Ejemplo: 'crab_small': 'assets/crab.png'
+  },
+  init() {
+    Object.keys(this.urls).forEach(key => {
+      const img = new Image();
+      img.src = this.urls[key];
+      img.onload = () => { this.images[key] = img; };
+    });
+  },
+  // Si la imagen existe, la dibuja. Si no, devuelve false para que actúe el Fallback Vectorial
+  drawSprite(ctx, id, x, y, width, height) {
+    if (this.images[id]) {
+      ctx.drawImage(this.images[id], x - width/2, y - height/2, width, height);
+      return true; 
+    }
+    return false;
+  }
+};
+
 const PetPaths = {
   tail: new Path2D("M40 55 L4 18 Q20 55 4 92 Z"),
   body: new Path2D("M30 55 Q80 8 150 30 Q200 45 214 58 Q190 84 140 88 Q70 98 30 55Z"),
@@ -22,19 +45,22 @@ const PetPaths = {
 function buildWorld() {
   const r = rng(7), decor = [], treasures = [...TREASURES], creatures = [];
   ZONES.forEach((z, zi) => {
-    for (let i = 0; i < (z.w / 1000) * 12; i += 1) decor.push({ x: z.x + r() * z.w, s: 30 + r() * 80, k: z.d, h: r(), zi, y: z.d === "glow" ? 200 + r() * 1100 : WORLD.h });
+    // Decoración distribuida en el plano X y el plano Y de la zona
+    for (let i = 0; i < (z.w * z.h / 1000000) * 15; i += 1) {
+      decor.push({ x: z.x + r() * z.w, y: z.y + r() * z.h, s: 30 + r() * 80, k: z.d, h: r(), zi });
+    }
     for (let i = 0; i < TREASURE_PER_ZONE[zi]; i += 1) {
       const k = ["coin", "coin", "gem", "chest"][Math.floor(r() * 4)];
-      treasures.push({ id: `t${zi}_${i}`, k, x: z.x + 80 + r() * (z.w - 160), y: WORLD.h * (0.6 + r() * 0.38) });
+      treasures.push({ id: `t${zi}_${i}`, k, x: z.x + 80 + r() * (z.w - 160), y: z.y + z.h * (0.6 + r() * 0.38) });
     }
     CREATURES.filter((c) => c.z.includes(zi)).forEach((def) => {
-      for (let i = 0; i < Math.round((z.w / 1000) * def.n); i += 1) creatures.push(spawn(def, z, r));
+      for (let i = 0; i < Math.round((z.w * z.h / 1000000) * def.n); i += 1) creatures.push(spawn(def, z, r));
     });
   });
   return { decor, treasures, creatures };
 }
 
-// Módulo Gráfico Avanzado para Mobs (Anatomías Complejas)
+// Fallback Vectorial 
 const Graphics = {
   drawFish(ctx, s, time, c1, c2) {
     const wag = Math.sin(time * 12) * (s * 0.15);
@@ -47,7 +73,6 @@ const Graphics = {
     const flap = Math.sin(time * 5) * s * 0.3;
     ctx.fillStyle = "#5c6bc0"; ctx.beginPath(); ctx.moveTo(s*0.4, 0); ctx.lineTo(0, -s*0.4 + flap); ctx.lineTo(-s*0.3, 0); ctx.lineTo(0, s*0.4 - flap); ctx.fill();
     ctx.strokeStyle = "#3f51b5"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-s*0.3, 0); ctx.lineTo(-s*0.8 + Math.sin(time*8)*s*0.1, Math.sin(time*6)*s*0.1); ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(s*0.2, -s*0.1, s*0.04, 0, 6.3); ctx.arc(s*0.2, s*0.1, s*0.04, 0, 6.3); ctx.fill();
   },
   drawEel(ctx, s, time, isHostile) {
     ctx.strokeStyle = isHostile ? "#2e7d32" : "#d4e157"; ctx.lineWidth = s * 0.2; ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -63,7 +88,6 @@ const Graphics = {
     [-1, 1].forEach(dir => {
       ctx.beginPath(); ctx.moveTo(dir*s*0.2, 0); ctx.lineTo(dir*s*0.4, -s*0.2 + leg*dir); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(dir*s*0.2, s*0.1); ctx.lineTo(dir*s*0.4, s*0.3 - leg*dir); ctx.stroke();
-      // Pinzas
       ctx.beginPath(); ctx.moveTo(dir*s*0.25, -s*0.1); ctx.lineTo(dir*s*0.45, -s*0.3); ctx.arc(dir*s*0.45, -s*0.3, s*0.08, 0, Math.PI); ctx.fill();
     });
   },
@@ -78,7 +102,10 @@ const Graphics = {
 
 export function createGame(o) {
   const { view, canvas, hud, banner, back, joy, biteBtn } = o.el;
-  const ctx = canvas.getContext("2d"), world = buildWorld();
+  const ctx = canvas.getContext("2d");
+  
+  AssetManager.init(); // Inicializa carga de sprites
+  const world = buildWorld();
   
   let S, p, input, audio, raf = 0, last = 0, running = false, vw = 0, vh = 0, time = 0, saveT = 0, darkV = 0, bannerT = 0, lastBanner = "", gateCd = 0;
   let camScale = 1; 
@@ -107,7 +134,15 @@ export function createGame(o) {
     }
   }
 
-  const zoneAt = (x) => Math.max(0, ZONES.findIndex((z) => x >= z.x && x < z.x + z.w));
+  const zoneAt = (x, y) => {
+    // Búsqueda en 2D (Eje X e Y)
+    let found = 0;
+    for(let i=0; i<ZONES.length; i++) {
+       const z = ZONES[i];
+       if (x >= z.x && x < z.x + z.w && y >= z.y && y < z.y + z.h) found = i;
+    }
+    return found;
+  };
   
   const hurt = (dm, fromX) => {
     if (p.inv > 0) return; p.inv = 1; p.hp -= dm; p.shake = 0.4; audio.sfx.hurt(); floatText(`-${dm}`, p.x, p.y - 20, "#ff6b6b");
@@ -115,6 +150,7 @@ export function createGame(o) {
     burst(p.x, p.y, "#ff3333", 10, true);
   };
 
+  // Verificación AABB (Eje X e Y)
   const blocking = (x, y, r) => ALL_GATES.find((g) => S.lvl < g.min && x + r > g.x && x - r < g.x + g.w && y + r > g.y && y - r < g.y + g.h);
 
   function step(dt) {
@@ -122,9 +158,11 @@ export function createGame(o) {
     const currentEvolutionLevel = o.getLevel(); 
     if (currentEvolutionLevel !== S.lvl) setLevel(currentEvolutionLevel);
 
-    const st = LEVELS[S.lvl], r = st.size * 0.5, d = input.dir(), a = Math.min(1, dt * 4);
+    const st = LEVELS[S.lvl], r = st.size * 0.5, d = input.dir();
     
-    // SISTEMA DE SPRINT (DASH) Y DRENAJE DE ENERGÍA
+    // BUFF DEL HUEVO: El multiplicador de aceleración ahora es el doble si es Nivel 0
+    const a = Math.min(1, dt * (S.lvl === 0 ? 8 : 4));
+    
     const isDashing = input.dash && input.dash() && p.energy > 0;
     const speedMult = isDashing ? 1.8 : 1;
     
@@ -140,7 +178,9 @@ export function createGame(o) {
         p[ax === "x" ? "vx" : "vy"] *= -0.5; 
       } else { p.x = nx; p.y = ny; }
     }
-    gateCd -= dt; p.x = Math.min(WORLD.w - r, Math.max(r, p.x)); p.y = Math.min(WORLD.h - r, Math.max(r, p.y));
+    gateCd -= dt; 
+    p.x = Math.min(WORLD.w - r, Math.max(r, p.x)); 
+    p.y = Math.min(WORLD.h - r, Math.max(0, p.y)); // El límite superior ahora es la superficie (Y=0)
     
     const spd = Math.hypot(p.vx, p.vy);
     if (spd > 8) { 
@@ -150,14 +190,12 @@ export function createGame(o) {
       if (Math.random() < dt * 4) audio.sfx.swim(); 
     }
     
-    // Estela de Dash (Partículas)
     if (isDashing && spd > 40 && Math.random() < dt * 25) {
       fx.push({ x: p.x - Math.cos(p.a) * st.size, y: p.y - Math.sin(p.a) * st.size + (Math.random() - 0.5) * 10, vx: -p.vx * 0.2, vy: -10, life: 0.6, col: "rgba(255,255,255,.8)", r: 2 + Math.random() * 2, b: 1 });
     }
 
     p.inv -= dt; p.biteT -= dt; p.shake = Math.max(0, p.shake - dt);
     
-    // Costo de energía (x3.5 al hacer Dash)
     const energyDrain = (S.lvl ? 0.8 : 0.3) * (isDashing ? 3.5 : 1);
     p.energy = Math.min(100, p.energy - dt * energyDrain); 
     if (p.energy <= 0) { p.energy = 0; p.hp -= dt * 3; }
@@ -194,13 +232,13 @@ export function createGame(o) {
       S.found[q.id] = 1; audio.sfx.zone(); addBp(BP.poi, p.x, p.y); say(`${txt().disc}   ${q.n[o.lang() === "es" ? 1 : 0]}`, "good");
     });
 
-    const zi = zoneAt(p.x);
+    const zi = zoneAt(p.x, p.y);
     if (zi !== p.zone) {
       p.zone = zi; audio.ambience(zi);
       if (zi && !S.zones[zi]) { S.zones[zi] = 1; audio.sfx.zone(); addBp(BP.zone, p.x, p.y); say(`${txt().disc}   ${ZONES[zi].n[o.lang() === "es" ? 1 : 0]}`, "good"); }
     }
     
-    if (p.hp <= 0) { say(txt().died, "warn"); burst(p.x, p.y, "#ff3333", 30, true); Object.assign(p, { x: 220, y: 500, vx: 0, vy: 0, hp: st.hp, energy: 60, inv: 3 }); }
+    if (p.hp <= 0) { say(txt().died, "warn"); burst(p.x, p.y, "#ff3333", 30, true); Object.assign(p, { x: 300, y: 200, vx: 0, vy: 0, hp: st.hp, energy: 60, inv: 3 }); }
     
     darkV += ((ZONES[zi].dark || 0) - darkV) * Math.min(1, dt);
     renderHud(st);
@@ -213,37 +251,28 @@ export function createGame(o) {
     hud.hp.style.width = `${Math.max(0, (p.hp / st.hp) * 100)}%`; hud.en.style.width = `${p.energy}%`; back.textContent = txt().back;
   }
 
-  // FIDELIDAD VISUAL ABSOLUTA: Renderizado exacto del SVG original
   function exactEgg(s, time) {
     const scale = (s * 2.2) / 100;
     ctx.save(); ctx.scale(scale, scale); ctx.translate(-50, -65);
-    ctx.translate(50, 130); ctx.rotate(Math.sin(time * 6) * 0.08); ctx.translate(-50, -130); // Tambaleo
+    ctx.translate(50, 130); ctx.rotate(Math.sin(time * 6) * 0.08); ctx.translate(-50, -130);
     ctx.fillStyle = "#f5e6c8"; ctx.beginPath(); ctx.ellipse(50, 70, 38, 52, 0, 0, 6.3); ctx.fill();
     ctx.fillStyle = "#e2c99a";
-    ctx.beginPath(); ctx.arc(36, 55, 6, 0, 6.3); ctx.fill();
-    ctx.beginPath(); ctx.arc(62, 82, 8, 0, 6.3); ctx.fill();
-    ctx.beginPath(); ctx.arc(58, 44, 4, 0, 6.3); ctx.fill();
+    ctx.beginPath(); ctx.arc(36, 55, 6, 0, 6.3); ctx.fill(); ctx.beginPath(); ctx.arc(62, 82, 8, 0, 6.3); ctx.fill(); ctx.beginPath(); ctx.arc(58, 44, 4, 0, 6.3); ctx.fill();
     ctx.restore();
   }
 
   function exactShark(L, col, wag, mouth) {
     const scale = (L * 2.8) / 220; 
     ctx.save(); ctx.scale(scale, scale); ctx.translate(-110, -55);
-    
-    // Cola (Animada independientemente)
     ctx.save(); ctx.translate(40, 55); ctx.rotate(wag * 0.05); ctx.translate(-40, -55);
     ctx.fillStyle = col; ctx.fill(PetPaths.tail); ctx.restore();
-
     ctx.fillStyle = col; ctx.fill(PetPaths.body);
     ctx.fillStyle = "#eaf6ff"; ctx.fill(PetPaths.belly);
     ctx.fillStyle = col; ctx.fill(PetPaths.finTop);
     ctx.fillStyle = col; ctx.globalAlpha = 0.8; ctx.fill(PetPaths.finBottom); ctx.globalAlpha = 1;
-    
     ctx.strokeStyle = "rgba(11, 27, 51, 0.25)"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.stroke(PetPaths.gills);
-    
     ctx.fillStyle = "#0b1b33"; ctx.beginPath(); ctx.arc(180, 52, 4.5, 0, 6.3); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(181.5, 50.5, 1.4, 0, 6.3); ctx.fill();
-
     if (mouth > 0) {
        ctx.fillStyle = "#5a0f1a";
        ctx.beginPath(); ctx.moveTo(214, 58); ctx.lineTo(190 + mouth*12, 58 + mouth*18); ctx.lineTo(180, 80); ctx.fill();
@@ -260,21 +289,30 @@ export function createGame(o) {
 
     ctx.save(); ctx.clearRect(0, 0, vw, vh); ctx.scale(camScale, camScale); 
 
+    // Render de bloques de zonas (Ejes X e Y)
     ZONES.forEach((z) => {
-      if (z.x + z.w < cx || z.x > cx + vwp) return;
-      const g = ctx.createLinearGradient(0, -cy, 0, H - cy); g.addColorStop(0, z.c[0]); g.addColorStop(1, z.c[1]);
-      ctx.fillStyle = g; ctx.fillRect(z.x - cx, 0, z.w + 1, vhp);
+      if (z.x + z.w < cx || z.x > cx + vwp || z.y + z.h < cy || z.y > cy + vhp) return;
+      const g = ctx.createLinearGradient(0, z.y - cy, 0, z.y + z.h - cy); 
+      g.addColorStop(0, z.c[0]); g.addColorStop(1, z.c[1]);
+      ctx.fillStyle = g; ctx.fillRect(z.x - cx, z.y - cy, z.w + 1, z.h + 1);
     });
     
+    // Superficie del agua (Olas dinámicas)
+    if (cy < 100) {
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.beginPath(); ctx.moveTo(0, -cy);
+      for(let x = 0; x <= vwp + 20; x += 30) ctx.lineTo(x, -cy + Math.sin(time * 3 + x * 0.05) * 8);
+      ctx.lineTo(vwp, -cy); ctx.lineTo(vwp, 0); ctx.lineTo(0, 0); ctx.fill();
+    }
+
     ctx.save(); ctx.translate(-cx, -cy);
     
-    // Suelo
+    // Suelo inferior
     const sg = ctx.createLinearGradient(0, H - 70, 0, H); sg.addColorStop(0, "rgba(210,190,140,.5)"); sg.addColorStop(1, "rgba(35,28,18,.9)");
     ctx.fillStyle = sg; ctx.beginPath(); ctx.moveTo(cx - 20, H + 10);
     for (let x = cx - 20; x <= cx + vwp + 20; x += 24) ctx.lineTo(x, H - 28 + Math.sin(x * 0.02) * 8);
     ctx.lineTo(cx + vwp + 20, H + 10); ctx.fill();
     
-    // Dibujo de Mobs Avanzados
     world.creatures.forEach((c) => {
       if (c.dead > 0 || c.x < cx - 300 || c.x > cx + vwp + 300 || c.y < cy - 300 || c.y > cy + vhp + 300) return;
       const df = c.def, edible = df.r <= st.power;
@@ -283,23 +321,25 @@ export function createGame(o) {
       const flip = Math.cos(c.a) > 0 ? -1 : 1;
       ctx.rotate(Math.sin(c.a) * 0.4 * -flip); ctx.scale(flip, 1); ctx.globalAlpha = c.hit > 0 ? 0.5 : 1;
       
-      // Selectores anatómicos
-      if (df.id.includes("ray")) Graphics.drawRay(ctx, df.s, time);
-      else if (df.id.includes("eel") || df.id.includes("snake")) Graphics.drawEel(ctx, df.s, time, df.dm);
-      else if (df.id.includes("crab")) Graphics.drawCrab(ctx, df.s, time);
-      else if (df.id.includes("golem") || df.id.includes("construct")) Graphics.drawGolem(ctx, df.s, time);
-      else Graphics.drawFish(ctx, df.s, time, df.dm ? "#d32f2f" : "#29b6f6", df.dm ? "#b71c1c" : "#0288d1");
-      
+      // SISTEMA DE SPRITES: Dibuja la imagen si existe, sino dibuja el vector procedural
+      if (!AssetManager.drawSprite(ctx, df.id, 0, 0, df.s * 2, df.s * 2)) {
+         if (df.id.includes("ray")) Graphics.drawRay(ctx, df.s, time);
+         else if (df.id.includes("eel") || df.id.includes("snake")) Graphics.drawEel(ctx, df.s, time, df.dm);
+         else if (df.id.includes("crab")) Graphics.drawCrab(ctx, df.s, time);
+         else if (df.id.includes("golem") || df.id.includes("construct")) Graphics.drawGolem(ctx, df.s, time);
+         else Graphics.drawFish(ctx, df.s, time, df.dm ? "#d32f2f" : "#29b6f6", df.dm ? "#b71c1c" : "#0288d1");
+      }
       ctx.restore();
     });
 
-    // Dibujo exacto del jugador
+    // Jugador (Tiburón 1:1)
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); if (Math.cos(p.a) < 0) ctx.scale(1, -1); 
     ctx.globalAlpha = p.inv > 0 && Math.floor(time * 12) % 2 ? 0.4 : 1;
-    if (S.lvl === 0) exactEgg(st.size, time); else exactShark(st.size, SHARK_COLORS[S.lvl], Math.sin(time * 9) * st.size, Math.max(0, p.biteT / 0.3));
+    if (!AssetManager.drawSprite(ctx, `player_lvl${S.lvl}`, 0, 0, st.size * 3, st.size * 1.5)) {
+        if (S.lvl === 0) exactEgg(st.size, time); else exactShark(st.size, SHARK_COLORS[S.lvl], Math.sin(time * 9) * st.size, Math.max(0, p.biteT / 0.3));
+    }
     ctx.restore();
 
-    // FX, Barreras y Luces...
     for (let i = fx.length - 1; i >= 0; i -= 1) { 
       const f = fx[i]; f.x += f.vx * 0.016; f.y += f.vy * 0.016; f.life -= 0.016; 
       ctx.globalAlpha = Math.max(0, f.life);
@@ -307,7 +347,7 @@ export function createGame(o) {
     }
     
     ctx.globalAlpha = 1; ctx.restore();
-    ctx.restore(); // Fin cámara
+    ctx.restore(); 
   }
 
   function resize() {
@@ -322,7 +362,8 @@ export function createGame(o) {
     S = { lvl: lv, bpLevel: s.bpLevel ?? lv, bp: s.bp || 0, found: s.found || {}, zones: s.zones || {} };
     if (S.bpLevel !== lv) { S.bpLevel = lv; S.bp = 0; } 
     
-    p = { x: 240, y: 520, vx: 0, vy: 0, a: 0, hp: LEVELS[lv].hp, energy: 80, inv: 0, biteT: 0, shake: 0, zone: -1 };
+    // Punto de origen ajustado a la costa superficial (X=300, Y=200)
+    p = { x: 300, y: 200, vx: 0, vy: 0, a: 0, hp: LEVELS[lv].hp, energy: 80, inv: 0, biteT: 0, shake: 0, zone: -1 };
     camScale = 60 / Math.max(60, LEVELS[lv].size * 0.8);
 
     input = createInput(canvas, joy, biteBtn); audio = createAudio(o.volume);

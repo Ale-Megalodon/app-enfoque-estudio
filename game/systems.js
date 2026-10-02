@@ -1,4 +1,4 @@
-/* Entrada (teclado/ratón/táctil), audio procedural e IA de criaturas. */
+/* Entrada (teclado/ratón/táctil), audio procedural e IA de criaturas - Beta 3.0 (Soporte Topografía Híbrida X/Y) */
 import { CREATURES, ZONES, WORLD } from "./data.js";
 
 export function createInput(canvas, joyEl, biteEl, dashEl) {
@@ -22,7 +22,6 @@ export function createInput(canvas, joyEl, biteEl, dashEl) {
   
   canvas.addEventListener("pointerdown", () => { bite = true; });
   
-  // Controles táctiles
   biteEl?.addEventListener("pointerdown", (e) => { e.stopPropagation(); bite = true; });
   dashEl?.addEventListener("pointerdown", (e) => { e.stopPropagation(); isDashing = true; });
   dashEl?.addEventListener("pointerup", (e) => { e.stopPropagation(); isDashing = false; });
@@ -116,7 +115,8 @@ export const speciesById = Object.fromEntries(CREATURES.map((c) => [c.id, c]));
 export function spawn(def, zone, rnd) {
   const [y0, y1] = def.y || [0.05, 0.95];
   const x = zone.x + 60 + rnd() * (zone.w - 120);
-  const y = WORLD.h * (y0 + rnd() * (y1 - y0));
+  // CORRECCIÓN: La profundidad de aparición ahora es relativa a los límites en Y del bioma
+  const y = zone.y + (zone.h * (y0 + rnd() * (y1 - y0)));
   return { def, x, y, hx: x, hy: y, a: rnd() * 6.28, zone: ZONES.indexOf(zone), t: rnd() * 5, hit: 0 };
 }
 
@@ -172,9 +172,12 @@ export function updateCreature(c, dt, p, power, rnd) {
 
   const z = ZONES[c.zone];
   if (z) {
+     // CORRECCIÓN: Los mobs ahora respetan estrictamente su rango de profundidad (Y) asignado
      c.x = Math.min(z.x + z.w - 30, Math.max(z.x + 30, c.x));
+     c.y = Math.min(z.y + z.h - 30, Math.max(z.y + 30, c.y));
+  } else {
+     c.y = Math.min(WORLD.h - 30, Math.max(30, c.y));
   }
-  c.y = Math.min(WORLD.h - 30, Math.max(30, c.y));
 
   c.hit = Math.max(0, c.hit - dt);
 
