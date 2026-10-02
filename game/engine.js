@@ -1,4 +1,4 @@
-/* Motor del minijuego (Beta 4.1) - Corrección de bug visual negro, inversión de enemigos y Bestiario interactivo */
+/* Motor del minijuego (Beta 4.2) - Corrección de funciones de dibujo del jugador, bugs visuales e IA */
 import { BP, WORLD, LEVELS, SHARK_COLORS, ZONES, GATES, POIS, TREASURES, TREASURE_PER_ZONE, CREATURES, TEXT, SAVE_VERSION } from "./data.js";
 import { createInput, createAudio, spawn, updateCreature } from "./systems.js";
 
@@ -36,6 +36,65 @@ const PetPaths = {
   finBottom: new Path2D("M120 82 L98 106 L146 86Z"),
   gills: new Path2D("M140 56 q4 8 0 16 M148 55 q4 8 0 16")
 };
+
+// Funciones de renderizado vectorial para el jugador (Huevito y Tiburón)
+function exactEgg(s) {
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#f5e6c8";
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s * 0.8, s * 1.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#e2c99a";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function exactShark(s, color, tailWag) {
+  const ctx = canvas.getContext("2d");
+  ctx.save();
+  const scale = s / 35;
+  ctx.scale(scale, scale);
+  
+  // Cola
+  ctx.save();
+  ctx.translate(-40, 0);
+  ctx.rotate(tailWag * 0.05);
+  ctx.fillStyle = color;
+  ctx.fill(PetPaths.tail);
+  ctx.restore();
+
+  // Cuerpo
+  ctx.fillStyle = color;
+  ctx.fill(PetPaths.body);
+
+  // Panza
+  ctx.fillStyle = "#eaf6ff";
+  ctx.fill(PetPaths.belly);
+
+  // Aleta dorsal
+  ctx.fillStyle = color;
+  ctx.fill(PetPaths.finTop);
+
+  // Aleta pectoral
+  ctx.fill(PetPaths.finBottom);
+
+  // Branquias
+  ctx.strokeStyle = "rgba(11, 27, 51, 0.25)";
+  ctx.lineWidth = 2;
+  ctx.stroke(PetPaths.gills);
+
+  // Ojo
+  ctx.fillStyle = "#0b1b33";
+  ctx.beginPath();
+  ctx.arc(60, -5, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(61.5, -6.5, 1.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
 
 // Miniaturas vectoriales para el Bestiario Visual
 const BestiaryIcons = {
@@ -356,13 +415,12 @@ export function createGame(o) {
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); if (Math.cos(p.a) < 0) ctx.scale(1, -1); 
     ctx.globalAlpha = p.inv > 0 && Math.floor(time * 12) % 2 ? 0.4 : 1;
     
-    const isBiting = p.biteT > 0;
-    const spriteId = isBiting ? `player_bite_lvl${S.lvl}` : `player_swim_lvl${S.lvl}`;
-    const frameCount = isBiting ? 2 : 4; 
+    const spriteId = p.biteT > 0 ? `player_bite_lvl${S.lvl}` : `player_swim_lvl${S.lvl}`;
+    const frameCount = p.biteT > 0 ? 2 : 4; 
     
     if (!AssetManager.drawSprite(ctx, spriteId, 0, 0, st.size * 3, st.size * 1.5, time, frameCount, 10)) {
-        if (S.lvl === 0) exactEgg(st.size, time); 
-        else exactShark(st.size, SHARK_COLORS[S.lvl], Math.sin(time * 9) * st.size, Math.max(0, p.biteT / 0.3));
+        if (S.lvl === 0) exactEgg(st.size); 
+        else exactShark(st.size, SHARK_COLORS[S.lvl], Math.sin(time * 9) * st.size);
     }
     ctx.restore();
 
@@ -433,5 +491,5 @@ export function createGame(o) {
 
   back.addEventListener("click", close);
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-  return { open, close };
+  return { open, close, resize };
 }
