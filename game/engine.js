@@ -1,4 +1,4 @@
-/* Motor del minijuego (Beta 4.2) - Corrección de coordenadas del jugador, bugs visuales e IA */
+/* Motor del minijuego (Beta 4.3 - Versión con Diagnóstico y Blindaje) */
 import { BP, WORLD, LEVELS, SHARK_COLORS, ZONES, GATES, POIS, TREASURES, TREASURE_PER_ZONE, CREATURES, TEXT, SAVE_VERSION } from "./data.js";
 import { createInput, createAudio, spawn, updateCreature } from "./systems.js";
 
@@ -37,7 +37,6 @@ const PetPaths = {
   gills: new Path2D("M140 56 q4 8 0 16 M148 55 q4 8 0 16")
 };
 
-// Funciones de renderizado vectorial para el jugador (Reciben el ctx transformado correctamente)
 function exactEgg(ctx, s) {
   ctx.fillStyle = "#f5e6c8";
   ctx.beginPath();
@@ -53,7 +52,6 @@ function exactShark(ctx, s, color, tailWag) {
   const scale = s / 35;
   ctx.scale(scale, scale);
   
-  // Cola
   ctx.save();
   ctx.translate(-40, 0);
   ctx.rotate(tailWag * 0.05);
@@ -61,27 +59,21 @@ function exactShark(ctx, s, color, tailWag) {
   ctx.fill(PetPaths.tail);
   ctx.restore();
 
-  // Cuerpo
   ctx.fillStyle = color;
   ctx.fill(PetPaths.body);
 
-  // Panza
   ctx.fillStyle = "#eaf6ff";
   ctx.fill(PetPaths.belly);
 
-  // Aleta dorsal
   ctx.fillStyle = color;
   ctx.fill(PetPaths.finTop);
 
-  // Aleta pectoral
   ctx.fill(PetPaths.finBottom);
 
-  // Branquias
   ctx.strokeStyle = "rgba(11, 27, 51, 0.25)";
   ctx.lineWidth = 2;
   ctx.stroke(PetPaths.gills);
 
-  // Ojo
   ctx.fillStyle = "#0b1b33";
   ctx.beginPath();
   ctx.arc(60, -5, 4.5, 0, Math.PI * 2);
@@ -94,7 +86,6 @@ function exactShark(ctx, s, color, tailWag) {
   ctx.restore();
 }
 
-// Miniaturas vectoriales para el Bestiario Visual
 const BestiaryIcons = {
   drawMiniFish(ctx, c1, c2) {
     ctx.fillStyle = c2; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(-12, -5); ctx.lineTo(-12, 5); ctx.fill();
@@ -420,6 +411,11 @@ export function createGame(o) {
         if (S.lvl === 0) exactEgg(ctx, st.size); 
         else exactShark(ctx, st.size, SHARK_COLORS[S.lvl], Math.sin(time * 9) * st.size);
     }
+
+    // 🔴 MARCADOR DE DIAGNÓSTICO ROJO (Si ves este punto rojo, la lógica y el renderizador están activos)
+    ctx.fillStyle = "red";
+    ctx.fillRect(-5, -5, 10, 10);
+
     ctx.restore();
 
     for (let i = fx.length - 1; i >= 0; i -= 1) { 
@@ -440,11 +436,26 @@ export function createGame(o) {
   }
 
   function resize() {
-    const dpr = window.devicePixelRatio || 1; vw = canvas.clientWidth; vh = canvas.clientHeight;
-    canvas.width = vw * dpr; canvas.height = vh * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const dpr = window.devicePixelRatio || 1; 
+    vw = canvas.clientWidth || window.innerWidth; 
+    vh = canvas.clientHeight || window.innerHeight;
+    canvas.width = vw * dpr; 
+    canvas.height = vh * dpr; 
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  function loop(ts) { if (!running) return; const dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts; step(dt); draw(); raf = requestAnimationFrame(loop); }
+  function loop(ts) { 
+    if (!running) return; 
+    const dt = Math.min(0.05, (ts - last) / 1000 || 0); 
+    last = ts; 
+    try {
+      step(dt); 
+      draw(); 
+    } catch (e) {
+      console.error("❌ Error crítico atrapado en el bucle del juego:", e);
+    }
+    raf = requestAnimationFrame(loop); 
+  }
 
   function open() {
     const s = o.load() || {}, lv = o.getLevel();
@@ -474,8 +485,13 @@ export function createGame(o) {
       if (showDietOverlay) showDietOverlay = false;
     });
 
-    view.hidden = false; resize(); window.addEventListener("resize", resize);
-    requestAnimationFrame(() => view.classList.add("is-open")); 
+    view.hidden = false; 
+    requestAnimationFrame(() => {
+      resize();
+      view.classList.add("is-open");
+    });
+    
+    window.addEventListener("resize", resize);
     running = true; last = performance.now(); raf = requestAnimationFrame(loop); 
     say(txt().hint);
   }
