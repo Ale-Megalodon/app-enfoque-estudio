@@ -3,7 +3,7 @@ import { BP, WORLD, LEVELS, SHARK_COLORS, ZONES, GATES, POIS, TREASURES, TREASUR
 import { createInput, createAudio, spawn, updateCreature } from "./systems.js";
 
 const rng = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-const TREASURE_ICON = { coin: "🪙", gem: "💎", chest: "🏴‍☠️️", relic: "🔱" };
+const TREASURE_ICON = { coin: "🪙", gem: "💎", chest: "🏴‍☠", relic: "🔱" };
 const ALL_GATES = [...GATES];
 
 const AssetManager = {
@@ -114,7 +114,7 @@ export function createGame(o) {
   
   let S, p, input, audio, raf = 0, last = 0, running = false, vw = 0, vh = 0, time = 0, saveT = 0, darkV = 0, bannerT = 0, lastBanner = "", gateCd = 0;
   let camScale = 1; 
-  let showDietOverlay = true; // Bestiario abierto al iniciar nivel
+  let showDietOverlay = true;
 
   const fx = [], ft = [], txt = () => TEXT[o.lang()] || TEXT.en, fmt = (n) => Math.round(n).toLocaleString(o.lang() === "es" ? "es-BO" : "en-US");
   const save = () => { clearTimeout(saveT); saveT = setTimeout(() => o.save({ v: SAVE_VERSION, bpLevel: S.bpLevel, bp: S.bp, found: S.found, zones: S.zones }), 1200); };
@@ -136,7 +136,7 @@ export function createGame(o) {
         S.bpLevel = lv; S.bp = 0; 
         say(`¡${txt().lvl} ${lv + 1} - ${o.name(lv)}!`, "good"); 
         burst(p.x, p.y, "#fff", 25); save(); 
-        showDietOverlay = true; // Activar bestiario al subir nivel
+        showDietOverlay = true; 
     }
   }
 
@@ -240,7 +240,6 @@ export function createGame(o) {
     hud.hp.style.width = `${Math.max(0, (p.hp / st.hp) * 100)}%`; hud.en.style.width = `${p.energy}%`; back.textContent = txt().back;
   }
 
-  // BESTIARIO VISUAL PROFESIONAL (Panel interactivo con diseño nivel Uber)
   function drawDietOverlay(ctx, power) {
     if (!showDietOverlay) return;
     
@@ -250,25 +249,19 @@ export function createGame(o) {
     const py = vh / 2 - panelH / 2;
     
     ctx.save();
-    // Fondo translúcido con sombra profunda
     ctx.fillStyle = "rgba(8, 24, 40, 0.95)";
     ctx.shadowColor = "rgba(0, 0, 0, 0.6)"; ctx.shadowBlur = 25;
     ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 20); ctx.fill();
     
-    // Borde brillante elegante
     ctx.strokeStyle = "rgba(125, 226, 255, 0.3)"; ctx.lineWidth = 1.5; ctx.stroke();
     
-    // Título
     ctx.fillStyle = "#7de2ff"; ctx.textAlign = "center"; ctx.font = "bold 18px system-ui";
     ctx.fillText(txt().diet, vw / 2, py + 40);
     
-    // Subtítulo instructivo
     ctx.fillStyle = "#8aabcc"; ctx.font = "12px system-ui";
     ctx.fillText(o.lang() === "es" ? "Haz clic en cualquier parte para comenzar a cazar" : "Click anywhere to start hunting", vw / 2, py + 65);
     
-    // Listado de presas con miniaturas visuales
     const edibleCreatures = CREATURES.filter(c => c.r <= power);
-    // Filtrar duplicados por nombre
     const uniqueMap = new Map();
     edibleCreatures.forEach(c => {
       const name = c.name[o.lang() === "es" ? 1 : 0];
@@ -282,11 +275,9 @@ export function createGame(o) {
     items.slice(0, 7).forEach((c, i) => {
       const iy = startY + i * itemH;
       
-      // Fila de fondo para cada presa
       ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
       ctx.beginPath(); ctx.roundRect(px + 24, iy, panelW - 48, 38, 10); ctx.fill();
       
-      // Miniatura gráfica de la criatura
       ctx.save();
       ctx.translate(px + 50, iy + 19);
       if (c.id.includes("crab")) BestiaryIcons.drawMiniCrab(ctx);
@@ -295,11 +286,9 @@ export function createGame(o) {
       else BestiaryIcons.drawMiniFish(ctx, "#29b6f6", "#0288d1");
       ctx.restore();
       
-      // Nombre de la presa
       ctx.fillStyle = "#ffffff"; ctx.textAlign = "left"; ctx.font = "14px system-ui";
       ctx.fillText(c.name[o.lang() === "es" ? 1 : 0], px + 85, iy + 24);
       
-      // Indicador de Break Points
       ctx.fillStyle = "#ffd27a"; ctx.textAlign = "right"; ctx.font = "bold 12px system-ui";
       ctx.fillText(`+${c.bp} BP`, px + panelW - 40, iy + 24);
     });
@@ -311,7 +300,6 @@ export function createGame(o) {
     const st = LEVELS[S.lvl], sh = p.shake ? (Math.random() - 0.5) * 12 : 0, H = WORLD.h;
     const vwp = vw / camScale, vhp = vh / camScale;
     
-    // CORRECCIÓN DEL BUG NEGRO: Restricción estricta de la cámara dentro de los límites físicos del mundo
     const cx = Math.min(WORLD.w - vwp, Math.max(0, p.x - vwp / 2)) + sh;
     const cy = Math.min(H - vhp, Math.max(0, p.y - vhp / 2));
 
@@ -319,7 +307,6 @@ export function createGame(o) {
 
     ctx.save(); ctx.clearRect(0, 0, vw, vh); ctx.scale(camScale, camScale); 
 
-    // Superficie (Cielo y Playa)
     if (cy < 0) {
       const sky = ctx.createLinearGradient(0, -cy, 0, 0);
       sky.addColorStop(0, "#ffcf87"); sky.addColorStop(1, "#87ceeb");
@@ -329,7 +316,6 @@ export function createGame(o) {
       ctx.lineTo(vwp, 0); ctx.fill();
     }
 
-    // RENDERIZADO DE ZONAS (Asegurando que cubra toda el área visible sin parches negros)
     ZONES.forEach((z) => {
       if (z.x + z.w < cx || z.x > cx + vwp || z.y + z.h < cy || z.y > cy + vhp) return;
       const g = ctx.createLinearGradient(0, z.y - cy, 0, z.y + z.h - cy); 
@@ -351,7 +337,6 @@ export function createGame(o) {
       const df = c.def;
       ctx.save(); ctx.translate(c.x, c.y + Math.sin(time * 2 + c.t * 3) * 2);
       
-      // CORRECCIÓN DE ORIENTACIÓN: El pez gira correctamente hacia donde se desplaza sin voltearse de cabeza
       const movingRight = Math.cos(c.a) >= 0;
       const flip = movingRight ? 1 : -1;
       ctx.scale(flip, 1); 
@@ -368,7 +353,6 @@ export function createGame(o) {
       ctx.restore();
     });
 
-    // Jugador
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); if (Math.cos(p.a) < 0) ctx.scale(1, -1); 
     ctx.globalAlpha = p.inv > 0 && Math.floor(time * 12) % 2 ? 0.4 : 1;
     
@@ -411,19 +395,33 @@ export function createGame(o) {
     S = { lvl: lv, bpLevel: s.bpLevel ?? lv, bp: s.bp || 0, found: s.found || {}, zones: s.zones || {} };
     if (S.bpLevel !== lv) { S.bpLevel = lv; S.bp = 0; } 
     
-    p = { x: 300, y: 200, vx: 0, vy: 0, a: 0, hp: LEVELS[lv].hp, energy: 80, inv: 0, biteT: 0, shake: 0, zone: -1 };
-    camScale = 60 / Math.max(60, LEVELS[lv].size * 0.8);
-    showDietOverlay = true; // Activar panel al abrir
+    const startZone = ZONES[0];
+    p = { 
+      x: startZone.x + startZone.w / 2, 
+      y: startZone.y + startZone.h / 2, 
+      vx: 0, vy: 0, a: 0, 
+      hp: LEVELS[lv].hp, 
+      energy: 80, 
+      inv: 0, 
+      biteT: 0, 
+      shake: 0, 
+      zone: 0 
+    };
 
-    input = createInput(canvas, joy, biteBtn); audio = createAudio(o.volume);
+    camScale = 60 / Math.max(60, LEVELS[lv].size * 0.8);
+    showDietOverlay = true;
+
+    input = createInput(canvas, joy, biteBtn); 
+    audio = createAudio(o.volume);
     
-    // Cierra el Bestiario Visual al hacer clic en cualquier parte de la pantalla
     canvas.addEventListener("pointerdown", () => {
       if (showDietOverlay) showDietOverlay = false;
     });
 
     view.hidden = false; resize(); window.addEventListener("resize", resize);
-    requestAnimationFrame(() => view.classList.add("is-open")); running = true; last = performance.now(); raf = requestAnimationFrame(loop); say(txt().hint);
+    requestAnimationFrame(() => view.classList.add("is-open")); 
+    running = true; last = performance.now(); raf = requestAnimationFrame(loop); 
+    say(txt().hint);
   }
 
   function close() {
