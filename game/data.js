@@ -1,4 +1,4 @@
-/* Configuración central - Mundo Híbrido, Ecosistema Expandido y Nombres Públicos - Beta 3.2 */
+/* Configuración central - Mundo Híbrido, Ecosistema Expandido y Bestiario Visual - Beta 4.1 */
 
 export const SAVE_VERSION = 3;
 export const WORLD = { w: 16000, h: 8000 };
@@ -45,11 +45,18 @@ export const GATES = [
   { x: 10000, y: 6500, w: 16000, h: 50, min: 9, t: "atlantis_seal" }   
 ];
 
-export const POIS = [ /* Mismo contenido... */ ];
+export const POIS = [
+  { id: "cove", n: ["Hidden Cove", "Cala escondida"], x: 1200, y: 1800, r: 150 },
+  { id: "reefcave", n: ["Coral Cave", "Cueva de coral"], x: 4500, y: 2500, r: 160 },
+  { id: "wreck1", n: ["Sunken Galleon", "Galeón hundido"], x: 2500, y: 4500, r: 200 },
+  { id: "abysscave", n: ["Luminous Cave", "Cueva luminosa"], x: 4000, y: 7500, r: 200 },
+  { id: "temple", n: ["Sunken Temple", "Templo hundido"], x: 11000, y: 5500, r: 220 },
+  { id: "core", n: ["Heart of Atlantis", "Corazón de Atlantis"], x: 14000, y: 7500, r: 300 }
+];
+
 export const TREASURES = [ { id: "t1", k: "chest", x: 2800, y: 4600 }, { id: "t2", k: "relic", x: 14100, y: 7600 } ];
 export const TREASURE_PER_ZONE = [2, 3, 4, 6, 4, 5, 8];
 
-// Catálogo expandido: Se añade campo 'name' para la interfaz de Dieta
 export const CREATURES = [
   { id: "plankton", name: ["Plankton", "Plancton"], r: 0, s: 8, bp: BP.plankton, b: "school", z: [0, 1], n: 25, sp: 20, heal: 1 },
   { id: "starfish", name: ["Starfish", "Estrella de mar"], r: 0, s: 12, bp: BP.starfish, b: "ignore", z: [0, 1], n: 10, sp: 5, y: [0.95, 1] },
@@ -77,6 +84,6 @@ export const CREATURES = [
 ];
 
 export const TEXT = {
-  en: { back: "  BACK", lvl: "Level", bp: "Break Points", big: "TOO BIG", disc: "NEW DISCOVERY", died: "YOU WERE DEVOURED", egg: "Hatch first to swim farther", cur: "CURRENT TOO STRONG", deep: "WATER PRESSURE TOO HIGH", seal: "SEALED BY ANCIENT POWER", small: "TUNNEL TOO NARROW", door: "NEEDS MORE STRENGTH", atlantis_seal: "ONLY THE APEX PREDATOR MAY ENTER", treasure: "TREASURE", hint: "Move: WASD   Bite: Space   Dash: Shift", diet: "YOU CAN EAT:" },
-  es: { back: "  VOLVER", lvl: "Nivel", bp: "Break Points", big: "DEMASIADO GRANDE", disc: "NUEVO DESCUBRIMIENTO", died: "TE HAN DEVORADO", egg: "Eclosiona primero para nadar más lejos", cur: "CORRIENTE DEMASIADO FUERTE", deep: "PRESIÓN DEMASIADO ALTA", seal: "SELLADO POR UN PODER ANTIGUO", small: "TÚNEL DEMASIADO ESTRECHO", door: "REQUIERE MÁS FUERZA", atlantis_seal: "SÓLO EL DEPREDADOR ALFA PUEDE ENTRAR", treasure: "TESORO", hint: "Mover: WASD   Morder: Espacio   Dash: Shift", diet: "PUEDES COMER:" }
+  en: { back: "  BACK", lvl: "Level", bp: "Break Points", big: "TOO BIG", disc: "NEW DISCOVERY", died: "YOU WERE DEVOURED", egg: "Hatch first to swim farther", cur: "CURRENT TOO STRONG", deep: "WATER PRESSURE TOO HIGH", seal: "SEALED BY ANCIENT POWER", small: "TUNNEL TOO NARROW", door: "NEEDS MORE STRENGTH", atlantis_seal: "ONLY THE APEX PREDATOR MAY ENTER", treasure: "TREASURE", hint: "Move: WASD   Bite: Space   Dash: Shift", diet: "HUNTING GUIDE (EDIBLE PREY):" },
+  es: { back: "  VOLVER", lvl: "Nivel", bp: "Break Points", big: "DEMASIADO GRANDE", disc: "NUEVO DESCUBRIMIENTO", died: "TE HAN DEVORADO", egg: "Eclosiona primero para nadar más lejos", cur: "CORRIENTE DEMASIADO FUERTE", deep: "PRESIÓN DEMASIADO ALTA", seal: "SELLADO POR UN PODER ANTIGUO", small: "TÚNEL DEMASIADO ESTRECHO", door: "REQUIERE MÁS FUERZA", atlantis_seal: "SÓLO EL DEPREDADOR ALFA PUEDE ENTRAR", treasure: "TESORO", hint: "Mover: WASD   Morder: Espacio   Dash: Shift", diet: "GUÍA DE CAZA (PRESAS COMESTIBLES):" }
 };

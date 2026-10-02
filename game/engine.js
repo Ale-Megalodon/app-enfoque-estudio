@@ -1,21 +1,14 @@
-/* Motor del minijuego (Beta 4.0) - Pixel Perfect, Spritesheets, Mundo Híbrido, Dash y Overlay de Dieta */
+/* Motor del minijuego (Beta 4.1) - Corrección de bug visual negro, inversión de enemigos y Bestiario interactivo */
 import { BP, WORLD, LEVELS, SHARK_COLORS, ZONES, GATES, POIS, TREASURES, TREASURE_PER_ZONE, CREATURES, TEXT, SAVE_VERSION } from "./data.js";
 import { createInput, createAudio, spawn, updateCreature } from "./systems.js";
 
 const rng = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-const TREASURE_ICON = { coin: "🪙", gem: "💎", chest: "🏴‍☠️", relic: "🔱" };
+const TREASURE_ICON = { coin: "🪙", gem: "💎", chest: "🏴‍☠️️", relic: "🔱" };
 const ALL_GATES = [...GATES];
 
-// GESTOR DE RECURSOS 2.0 (Soporte para Spritesheets y Animación Frame-by-Frame)
 const AssetManager = {
   images: {},
-  urls: {
-    // AQUÍ REGISTRARÁS TUS IMÁGENES PIXEL ART EN EL FUTURO.
-    // Ejemplos:
-    // 'player_swim_lvl0': 'assets/huevito_swim.png',
-    // 'player_bite_lvl1': 'assets/cria_bite.png',
-    // 'crab_small': 'assets/crab.png'
-  },
+  urls: {},
   init() {
     Object.keys(this.urls).forEach(key => {
       const img = new Image();
@@ -23,22 +16,15 @@ const AssetManager = {
       img.onload = () => { this.images[key] = img; };
     });
   },
-  // time: tiempo del motor, frames: columnas de la imagen, speed: velocidad de reproducción
   drawSprite(ctx, id, x, y, width, height, time, frames = 1, speed = 8) {
     const img = this.images[id];
     if (img) {
       const currentFrame = Math.floor(time * speed) % frames;
       const frameWidth = img.width / frames;
-      ctx.drawImage(
-        img,
-        currentFrame * frameWidth, 0, // X, Y original del recorte
-        frameWidth, img.height,       // Ancho y Alto original del recorte
-        x - width / 2, y - height / 2,// X, Y destino en Canvas
-        width, height                 // Ancho y Alto destino
-      );
+      ctx.drawImage(img, currentFrame * frameWidth, 0, frameWidth, img.height, x - width / 2, y - height / 2, width, height);
       return true; 
     }
-    return false; // Devuelve false para usar el Fallback Geométrico
+    return false;
   }
 };
 
@@ -51,7 +37,23 @@ const PetPaths = {
   gills: new Path2D("M140 56 q4 8 0 16 M148 55 q4 8 0 16")
 };
 
-// Módulo de Fallback Visual (Se dibuja si no hay PNG en AssetManager)
+// Miniaturas vectoriales para el Bestiario Visual
+const BestiaryIcons = {
+  drawMiniFish(ctx, c1, c2) {
+    ctx.fillStyle = c2; ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(-12, -5); ctx.lineTo(-12, 5); ctx.fill();
+    ctx.fillStyle = c1; ctx.beginPath(); ctx.ellipse(0, 0, 10, 5, 0, 0, 6.3); ctx.fill();
+  },
+  drawMiniCrab(ctx) {
+    ctx.fillStyle = "#d84315"; ctx.beginPath(); ctx.ellipse(0, 0, 8, 5, 0, 0, 6.3); ctx.fill();
+  },
+  drawMiniEel(ctx) {
+    ctx.strokeStyle = "#d4e157"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke();
+  },
+  drawMiniRay(ctx) {
+    ctx.fillStyle = "#5c6bc0"; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(0, -8); ctx.lineTo(-8, 0); ctx.lineTo(0, 8); ctx.fill();
+  }
+};
+
 const Graphics = {
   drawFish(ctx, s, time, c1, c2) {
     const wag = Math.sin(time * 12) * (s * 0.15);
@@ -112,7 +114,7 @@ export function createGame(o) {
   
   let S, p, input, audio, raf = 0, last = 0, running = false, vw = 0, vh = 0, time = 0, saveT = 0, darkV = 0, bannerT = 0, lastBanner = "", gateCd = 0;
   let camScale = 1; 
-  let showDietOverlay = true;
+  let showDietOverlay = true; // Bestiario abierto al iniciar nivel
 
   const fx = [], ft = [], txt = () => TEXT[o.lang()] || TEXT.en, fmt = (n) => Math.round(n).toLocaleString(o.lang() === "es" ? "es-BO" : "en-US");
   const save = () => { clearTimeout(saveT); saveT = setTimeout(() => o.save({ v: SAVE_VERSION, bpLevel: S.bpLevel, bp: S.bp, found: S.found, zones: S.zones }), 1200); };
@@ -134,7 +136,7 @@ export function createGame(o) {
         S.bpLevel = lv; S.bp = 0; 
         say(`¡${txt().lvl} ${lv + 1} - ${o.name(lv)}!`, "good"); 
         burst(p.x, p.y, "#fff", 25); save(); 
-        showDietOverlay = true;
+        showDietOverlay = true; // Activar bestiario al subir nivel
     }
   }
 
@@ -153,10 +155,6 @@ export function createGame(o) {
 
     const st = LEVELS[S.lvl], r = st.size * 0.5, d = input.dir();
     
-    // Ocultar Overlay de Dieta al interactuar
-    if (showDietOverlay && (d.x !== 0 || d.y !== 0 || input.takeBite())) showDietOverlay = false;
-
-    // Multiplicador del huevo x8 para mejor arranque
     const a = Math.min(1, dt * (S.lvl === 0 ? 8 : 4));
     const isDashing = input.dash && input.dash() && p.energy > 0;
     const speedMult = isDashing ? 1.8 : 1;
@@ -175,7 +173,7 @@ export function createGame(o) {
     }
     gateCd -= dt; 
     p.x = Math.min(WORLD.w - r, Math.max(r, p.x)); 
-    p.y = Math.min(WORLD.h - r, Math.max(20, p.y)); // Superficie dura Y=20
+    p.y = Math.min(WORLD.h - r, Math.max(20, p.y));
     
     const spd = Math.hypot(p.vx, p.vy);
     if (spd > 8) { 
@@ -242,74 +240,86 @@ export function createGame(o) {
     hud.hp.style.width = `${Math.max(0, (p.hp / st.hp) * 100)}%`; hud.en.style.width = `${p.energy}%`; back.textContent = txt().back;
   }
 
+  // BESTIARIO VISUAL PROFESIONAL (Panel interactivo con diseño nivel Uber)
   function drawDietOverlay(ctx, power) {
     if (!showDietOverlay) return;
-    const menuWidth = Math.min(300, vw * 0.8);
-    const edible = CREATURES.filter(c => c.r <= power).map(c => c.name[o.lang() === "es" ? 1 : 0]);
-    const uniqueEdible = [...new Set(edible)];
+    
+    const panelW = Math.min(420, vw * 0.85);
+    const panelH = Math.min(480, vh * 0.8);
+    const px = vw / 2 - panelW / 2;
+    const py = vh / 2 - panelH / 2;
     
     ctx.save();
-    ctx.fillStyle = "rgba(2, 18, 31, 0.85)";
-    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 10;
-    ctx.beginPath(); ctx.roundRect(vw/2 - menuWidth/2, vh/2 - 120, menuWidth, 240, 16); ctx.fill();
+    // Fondo translúcido con sombra profunda
+    ctx.fillStyle = "rgba(8, 24, 40, 0.95)";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.6)"; ctx.shadowBlur = 25;
+    ctx.beginPath(); ctx.roundRect(px, py, panelW, panelH, 20); ctx.fill();
     
-    ctx.fillStyle = "#7de2ff"; ctx.textAlign = "center"; ctx.font = "bold 16px system-ui";
-    ctx.fillText(txt().diet, vw/2, vh/2 - 80);
+    // Borde brillante elegante
+    ctx.strokeStyle = "rgba(125, 226, 255, 0.3)"; ctx.lineWidth = 1.5; ctx.stroke();
     
-    ctx.fillStyle = "#fff"; ctx.font = "14px system-ui";
-    for(let i=0; i<Math.min(6, uniqueEdible.length); i++) {
-        ctx.fillText("• " + uniqueEdible[i], vw/2, vh/2 - 40 + i*24);
-    }
-    if (uniqueEdible.length > 6) ctx.fillText("...y más", vw/2, vh/2 - 40 + 6*24);
+    // Título
+    ctx.fillStyle = "#7de2ff"; ctx.textAlign = "center"; ctx.font = "bold 18px system-ui";
+    ctx.fillText(txt().diet, vw / 2, py + 40);
     
-    ctx.fillStyle = "#a5c9ee"; ctx.font = "12px system-ui";
-    ctx.fillText("(Muévete para cerrar)", vw/2, vh/2 + 100);
-    ctx.restore();
-  }
-
-  // Exact fallback rendering for player
-  function exactEgg(s, time) {
-    const scale = (s * 2.2) / 100;
-    ctx.save(); ctx.scale(scale, scale); ctx.translate(-50, -65);
-    ctx.translate(50, 130); ctx.rotate(Math.sin(time * 6) * 0.08); ctx.translate(-50, -130);
-    ctx.fillStyle = "#f5e6c8"; ctx.beginPath(); ctx.ellipse(50, 70, 38, 52, 0, 0, 6.3); ctx.fill();
-    ctx.fillStyle = "#e2c99a";
-    ctx.beginPath(); ctx.arc(36, 55, 6, 0, 6.3); ctx.fill(); ctx.beginPath(); ctx.arc(62, 82, 8, 0, 6.3); ctx.fill(); ctx.beginPath(); ctx.arc(58, 44, 4, 0, 6.3); ctx.fill();
-    ctx.restore();
-  }
-
-  function exactShark(L, col, wag, mouth) {
-    const scale = (L * 2.8) / 220; 
-    ctx.save(); ctx.scale(scale, scale); ctx.translate(-110, -55);
-    ctx.save(); ctx.translate(40, 55); ctx.rotate(wag * 0.05); ctx.translate(-40, -55);
-    ctx.fillStyle = col; ctx.fill(PetPaths.tail); ctx.restore();
-    ctx.fillStyle = col; ctx.fill(PetPaths.body);
-    ctx.fillStyle = "#eaf6ff"; ctx.fill(PetPaths.belly);
-    ctx.fillStyle = col; ctx.fill(PetPaths.finTop);
-    ctx.fillStyle = col; ctx.globalAlpha = 0.8; ctx.fill(PetPaths.finBottom); ctx.globalAlpha = 1;
-    ctx.strokeStyle = "rgba(11, 27, 51, 0.25)"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.stroke(PetPaths.gills);
-    ctx.fillStyle = "#0b1b33"; ctx.beginPath(); ctx.arc(180, 52, 4.5, 0, 6.3); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(181.5, 50.5, 1.4, 0, 6.3); ctx.fill();
-    if (mouth > 0) {
-       ctx.fillStyle = "#5a0f1a";
-       ctx.beginPath(); ctx.moveTo(214, 58); ctx.lineTo(190 + mouth*12, 58 + mouth*18); ctx.lineTo(180, 80); ctx.fill();
-       ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(214, 58); ctx.lineTo(204, 66); ctx.lineTo(200, 58); ctx.fill();
-    }
+    // Subtítulo instructivo
+    ctx.fillStyle = "#8aabcc"; ctx.font = "12px system-ui";
+    ctx.fillText(o.lang() === "es" ? "Haz clic en cualquier parte para comenzar a cazar" : "Click anywhere to start hunting", vw / 2, py + 65);
+    
+    // Listado de presas con miniaturas visuales
+    const edibleCreatures = CREATURES.filter(c => c.r <= power);
+    // Filtrar duplicados por nombre
+    const uniqueMap = new Map();
+    edibleCreatures.forEach(c => {
+      const name = c.name[o.lang() === "es" ? 1 : 0];
+      if (!uniqueMap.has(name)) uniqueMap.set(name, c);
+    });
+    const items = Array.from(uniqueMap.values());
+    
+    let startY = py + 95;
+    const itemH = 46;
+    
+    items.slice(0, 7).forEach((c, i) => {
+      const iy = startY + i * itemH;
+      
+      // Fila de fondo para cada presa
+      ctx.fillStyle = "rgba(255, 255, 255, 0.04)";
+      ctx.beginPath(); ctx.roundRect(px + 24, iy, panelW - 48, 38, 10); ctx.fill();
+      
+      // Miniatura gráfica de la criatura
+      ctx.save();
+      ctx.translate(px + 50, iy + 19);
+      if (c.id.includes("crab")) BestiaryIcons.drawMiniCrab(ctx);
+      else if (c.id.includes("eel") || c.id.includes("snake")) BestiaryIcons.drawMiniEel(ctx);
+      else if (c.id.includes("ray")) BestiaryIcons.drawMiniRay(ctx);
+      else BestiaryIcons.drawMiniFish(ctx, "#29b6f6", "#0288d1");
+      ctx.restore();
+      
+      // Nombre de la presa
+      ctx.fillStyle = "#ffffff"; ctx.textAlign = "left"; ctx.font = "14px system-ui";
+      ctx.fillText(c.name[o.lang() === "es" ? 1 : 0], px + 85, iy + 24);
+      
+      // Indicador de Break Points
+      ctx.fillStyle = "#ffd27a"; ctx.textAlign = "right"; ctx.font = "bold 12px system-ui";
+      ctx.fillText(`+${c.bp} BP`, px + panelW - 40, iy + 24);
+    });
+    
     ctx.restore();
   }
 
   function draw() {
     const st = LEVELS[S.lvl], sh = p.shake ? (Math.random() - 0.5) * 12 : 0, H = WORLD.h;
     const vwp = vw / camScale, vhp = vh / camScale;
+    
+    // CORRECCIÓN DEL BUG NEGRO: Restricción estricta de la cámara dentro de los límites físicos del mundo
     const cx = Math.min(WORLD.w - vwp, Math.max(0, p.x - vwp / 2)) + sh;
     const cy = Math.min(H - vhp, Math.max(0, p.y - vhp / 2));
 
-    // MODO PIXEL PERFECT
     ctx.imageSmoothingEnabled = false;
 
     ctx.save(); ctx.clearRect(0, 0, vw, vh); ctx.scale(camScale, camScale); 
 
-    // SUPERFICIE EXTERIOR (Cielo y Playa)
+    // Superficie (Cielo y Playa)
     if (cy < 0) {
       const sky = ctx.createLinearGradient(0, -cy, 0, 0);
       sky.addColorStop(0, "#ffcf87"); sky.addColorStop(1, "#87ceeb");
@@ -319,6 +329,7 @@ export function createGame(o) {
       ctx.lineTo(vwp, 0); ctx.fill();
     }
 
+    // RENDERIZADO DE ZONAS (Asegurando que cubra toda el área visible sin parches negros)
     ZONES.forEach((z) => {
       if (z.x + z.w < cx || z.x > cx + vwp || z.y + z.h < cy || z.y > cy + vhp) return;
       const g = ctx.createLinearGradient(0, z.y - cy, 0, z.y + z.h - cy); 
@@ -326,7 +337,6 @@ export function createGame(o) {
       ctx.fillStyle = g; ctx.fillRect(z.x - cx, Math.max(0, z.y - cy), z.w + 1, z.h + 1);
     });
     
-    // Olas de superficie
     if (cy < 100) {
       ctx.fillStyle = "rgba(255,255,255,0.15)";
       ctx.beginPath(); ctx.moveTo(0, -cy);
@@ -338,13 +348,16 @@ export function createGame(o) {
     
     world.creatures.forEach((c) => {
       if (c.dead > 0 || c.x < cx - 300 || c.x > cx + vwp + 300 || c.y < cy - 300 || c.y > cy + vhp + 300) return;
-      const df = c.def, edible = df.r <= st.power;
+      const df = c.def;
       ctx.save(); ctx.translate(c.x, c.y + Math.sin(time * 2 + c.t * 3) * 2);
       
-      const flip = Math.cos(c.a) > 0 ? -1 : 1;
-      ctx.rotate(Math.sin(c.a) * 0.4 * -flip); ctx.scale(flip, 1); ctx.globalAlpha = c.hit > 0 ? 0.5 : 1;
+      // CORRECCIÓN DE ORIENTACIÓN: El pez gira correctamente hacia donde se desplaza sin voltearse de cabeza
+      const movingRight = Math.cos(c.a) >= 0;
+      const flip = movingRight ? 1 : -1;
+      ctx.scale(flip, 1); 
       
-      // Dibujado del Mob (Intenta Sprite, si no, usa Vectorial)
+      ctx.globalAlpha = c.hit > 0 ? 0.5 : 1;
+      
       if (!AssetManager.drawSprite(ctx, df.id, 0, 0, df.s * 2, df.s * 2, time, 4, 8)) {
          if (df.id.includes("ray")) Graphics.drawRay(ctx, df.s, time);
          else if (df.id.includes("eel") || df.id.includes("snake")) Graphics.drawEel(ctx, df.s, time, df.dm);
@@ -400,9 +413,15 @@ export function createGame(o) {
     
     p = { x: 300, y: 200, vx: 0, vy: 0, a: 0, hp: LEVELS[lv].hp, energy: 80, inv: 0, biteT: 0, shake: 0, zone: -1 };
     camScale = 60 / Math.max(60, LEVELS[lv].size * 0.8);
-    showDietOverlay = true;
+    showDietOverlay = true; // Activar panel al abrir
 
     input = createInput(canvas, joy, biteBtn); audio = createAudio(o.volume);
+    
+    // Cierra el Bestiario Visual al hacer clic en cualquier parte de la pantalla
+    canvas.addEventListener("pointerdown", () => {
+      if (showDietOverlay) showDietOverlay = false;
+    });
+
     view.hidden = false; resize(); window.addEventListener("resize", resize);
     requestAnimationFrame(() => view.classList.add("is-open")); running = true; last = performance.now(); raf = requestAnimationFrame(loop); say(txt().hint);
   }
