@@ -1,3 +1,156 @@
+/* Sistemas del minijuego (Entrada, Audio, Generación y Comportamiento de Criaturas) */
+import { ZONES, WORLD } from "./data.js";
+
+// 1. GESTIÓN DE ENTRADA (Teclado y Joystick Táctil)
+export function createInput(canvas, joy, biteBtn) {
+  const keys = {};
+  let biting = false;
+  let dashing = false;
+  let joyActive = false;
+  let joyVec = { x: 0, y: 0 };
+
+  const onKeyDown = (e) => {
+    keys[e.code] = true;
+    if (e.code === "Space") biting = true;
+    if (e.code === "ShiftLeft" || e.code === "ShiftRight") dashing = true;
+  };
+
+  const onKeyUp = (e) => {
+    keys[e.code] = false;
+    if (e.code === "ShiftLeft" || e.code === "ShiftRight") dashing = false;
+  };
+
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+
+  if (biteBtn) {
+    biteBtn.addEventListener("pointerdown", () => { biting = true; });
+  }
+
+  if (joy) {
+    const onJoyMove = (e) => {
+      const rect = joy.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = (e.clientX - cx) / (rect.width / 2);
+      const dy = (e.clientY - cy) / (rect.height / 2);
+      const len = Math.hypot(dx, dy);
+      if (len > 0) {
+        joyVec.x = dx / (len > 1 ? len : 1);
+        joyVec.y = dy / (len > 1 ? len : 1);
+      }
+    };
+
+    joy.addEventListener("pointerdown", (e) => { joyActive = true; onJoyMove(e); });
+    window.addEventListener("pointermove", (e) => { if (joyActive) onJoyMove(e); });
+    window.addEventListener("pointerup", () => { joyActive = false; joyVec.x = 0; joyVec.y = 0; });
+  }
+
+  return {
+    dir() {
+      let x = 0, y = 0;
+      if (keys["KeyW"] || keys["ArrowUp"]) y -= 1;
+      if (keys["KeyS"] || keys["ArrowDown"]) y += 1;
+      if (keys["KeyA"] || keys["ArrowLeft"]) x -= 1;
+      if (keys["KeyD"] || keys["ArrowRight"]) x += 1;
+
+      if (joyVec.x !== 0 || joyVec.y !== 0) {
+        x = joyVec.x;
+        y = joyVec.y;
+      }
+
+      const len = Math.hypot(x, y);
+      if (len > 1) { x /= len; y /= len; }
+      return { x, y };
+    },
+    dash() {
+      return dashing || keys["KeyZ"] || false;
+    },
+    takeBite() {
+      const b = biting;
+      biting = false;
+      return b;
+    },
+    destroy() {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    }
+  };
+}
+
+// 2. GESTIÓN DE AUDIO PROCEDURAL Y AMBIENTE
+export function createAudio(volumeGetter) {
+  let ctx = null;
+
+  const getCtx = () => {
+    if (!ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) ctx = new AudioCtx();
+    }
+    if (ctx && ctx.state === "suspended") ctx.resume();
+    return ctx;
+  };
+
+  const playTone = (freq, type, duration, volMod = 1) => {
+    const vol = (volumeGetter ? volumeGetter() : 70) / 100 * 0.15 * volMod;
+    if (vol <= 0) return;
+    const c = getCtx();
+    if (!c) return;
+
+    try {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, c.currentTime);
+      gain.gain.setValueAtTime(vol, c.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start();
+      osc.stop(c.currentTime + duration);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return {
+    sfx: {
+      swim: () => playTone(120, "sine", 0.08, 0.4),
+      bite: () => { playTone(240, "sawtooth", 0.12, 0.8); setTimeout(() => playTone(180, "sawtooth", 0.1, 0.8), 60); },
+      eat: () => { playTone(440, "sine", 0.1); setTimeout(() => playTone(660, "sine", 0.15), 80); },
+      hurt: () => playTone(90, "sawtooth", 0.3, 1),
+      treasure: () => { playTone(523.25, "sine", 0.1); setTimeout(() => playTone(659.25, "sine", 0.1), 100); setTimeout(() => playTone(783.99, "sine", 0.2), 200); },
+      zone: () => { playTone(350, "triangle", 0.4); }
+    },
+    ambience(zoneIndex) {
+      // Audio de ambiente por zona (silencioso o sutil)
+    },
+    stop() {
+      if (ctx) ctx.close().catch(() => {});
+      ctx = null;
+    }
+  };
+}
+
+// 3. GENERACIÓN DE CRIATURAS (SPAWN)
+export function spawn(def, zone, rnd) {
+  const yRange = def.y || [0.05, 0.95];
+  const x = zone.x + 80 + rnd() * (zone.w - 160);
+  const y = zone.y + zone.h * yRange[0] + rnd() * (zone.h * (yRange[1] - yRange[0]));
+  return {
+    id: def.id,
+    def,
+    zone: ZONES.indexOf(zone),
+    x, y,
+    hx: x, hy: y,
+    a: rnd() * 6.3,
+    t: rnd() * 3,
+    hit: 0,
+    dead: 0
+  };
+}
+
+// 4. COMPORTAMIENTO E INTELIGENCIA ARTIFICIAL DE CRIATURAS (Actualizado Beta 4.1)
 export function updateCreature(c, dt, p, power, rnd) {
   const d = c.def;
   const dx = p.x - c.x;
