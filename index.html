@@ -31,9 +31,9 @@
           <span>Focus Cloud</span>
         </a>
         <nav class="main-nav" aria-label="Navegación principal">
-          <button class="nav-button is-active" type="button" data-view="timer">Temporizadores</button>
-          <button class="nav-button" type="button" data-view="stats">Estadísticas</button>
-          <button class="nav-button" type="button" data-view="aquarium">Acuario</button>
+          <button class="nav-button is-active" type="button" data-view="timer"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><span>Temporizadores</span></button>
+          <button class="nav-button" type="button" data-view="stats"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span>Estadísticas</span></button>
+          <button class="nav-button" type="button" data-view="aquarium"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12c3.5-5 9-6 13-3.5L21 6l-1.5 6L21 18l-6-2.5C11 18 5.5 17 2 12z"/><circle cx="14" cy="11" r="1"/></svg><span>Acuario</span></button>
         </nav>
         <div class="topbar-actions">
           <button id="settings-button" class="icon-button" type="button" aria-label="Abrir ajustes" title="Ajustes">⚙</button>
@@ -195,6 +195,7 @@
 
           <div id="tank" class="tank">
             <span class="bubble"></span><span class="bubble"></span><span class="bubble"></span><span class="bubble"></span><span class="bubble"></span>
+            <div id="preview-banner" class="preview-banner" hidden><span id="preview-text"></span><button id="preview-close" type="button">Volver</button></div>
             <div id="shark" class="shark"><div id="shark-flip" class="shark-flip"></div></div>
             <div class="sand"></div>
           </div>
@@ -213,6 +214,7 @@
             </div>
           </div>
 
+          <p class="eyebrow levels-title">NIVELES · toca uno para previsualizarlo</p>
           <div id="pet-levels" class="pet-levels"></div>
         </section>
       </main>

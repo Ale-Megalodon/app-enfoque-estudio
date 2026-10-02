@@ -160,6 +160,9 @@ const elements = {
   feedOne: document.querySelector("#feed-one"),
   feedAll: document.querySelector("#feed-all"),
   petLevels: document.querySelector("#pet-levels"),
+  previewBanner: document.querySelector("#preview-banner"),
+  previewText: document.querySelector("#preview-text"),
+  previewClose: document.querySelector("#preview-close"),
 
   // Modal: editor de temporizador
   timerModal: document.querySelector("#timer-modal"),
@@ -476,7 +479,7 @@ function renderTimers() {
 
   timers.forEach((timer) => {
     const card = document.createElement("div");
-    card.className = `timer-card${timer.id === selectedTimerId ? " is-selected" : ""}`;
+    card.className = `timer-card${timer.id === selectedTimerId ? " is-selected" : ""}${timer.status === "running" ? " is-running" : ""}`;
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     card.setAttribute("aria-label", `Seleccionar ${timer.title}`);
@@ -1444,6 +1447,7 @@ const SHARK_COLORS = ["#f5e6c8", "#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7", "#2
 let pet = { earnedMinutes: 0, meatFed: 0 };
 let petReady = false, timersReady = false, petExists = false, petInitStarted = false;
 let unsubscribePet = null, lastPetLevel = null, renderedPetLevel = -1, roamId = null;
+let previewLevel = null, renderedLocked = false;   // vista previa de niveles
 
 function petReference() { return doc(db, "users", currentUser.uid, "pet", "main"); }
 
@@ -1465,21 +1469,25 @@ function maybeInitPet() {
     .catch((e) => { petInitStarted = false; console.error(e); });
 }
 
-function sharkSvg(idx) {
+function sharkSvg(idx, locked = false) {
   if (idx === 0) {
     return `<svg viewBox="0 0 100 130" class="shark-svg egg-svg" role="img" aria-label="Huevito"><ellipse cx="50" cy="70" rx="38" ry="52" fill="#f5e6c8"/><circle cx="36" cy="55" r="6" fill="#e2c99a"/><circle cx="62" cy="82" r="8" fill="#e2c99a"/><circle cx="58" cy="44" r="4" fill="#e2c99a"/></svg>`;
   }
-  const c = SHARK_COLORS[idx];
-  const crown = idx >= 8 ? `<path d="M150 36 L154 20 L160 29 L166 18 L172 36Z" fill="#fbbf24"/>` : "";
+  // Nivel bloqueado: silueta gris
+  const c = locked ? "#8b96a5" : SHARK_COLORS[idx];
+  const belly = locked ? "#cfd6df" : "#eaf6ff";
+  const gold = locked ? "#b6bfcb" : "#fbbf24";
+  const eye = locked ? "#4b5563" : "#0b1b33";
+  const crown = idx >= 8 ? `<path d="M150 36 L154 20 L160 29 L166 18 L172 36Z" fill="${gold}"/>` : "";
   const scars = idx >= 5 ? `<path d="M120 50 l14 10 M126 46 l14 10" stroke="#fff" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>` : "";
   return `<svg viewBox="0 0 220 110" class="shark-svg" role="img" aria-label="${SHARK_LEVELS[idx].name}">
     <g class="shark-tail"><path d="M40 55 L4 18 Q20 55 4 92 Z" fill="${c}"/></g>
     <path d="M30 55 Q80 8 150 30 Q200 45 214 58 Q190 84 140 88 Q70 98 30 55Z" fill="${c}"/>
-    <path d="M60 78 Q120 94 196 66 Q150 88 100 88Z" fill="#eaf6ff"/>
+    <path d="M60 78 Q120 94 196 66 Q150 88 100 88Z" fill="${belly}"/>
     <path d="M95 30 L116 0 L136 32Z" fill="${c}"/>
     <path d="M120 82 L98 106 L146 86Z" fill="${c}" style="filter:brightness(.8)"/>
     <path d="M140 56 q4 8 0 16 M148 55 q4 8 0 16" stroke="#0b1b33" stroke-opacity=".25" stroke-width="2" fill="none" stroke-linecap="round"/>
-    <circle cx="180" cy="52" r="4.5" fill="#0b1b33"/><circle cx="181.5" cy="50.5" r="1.4" fill="#fff"/>
+    <circle cx="180" cy="52" r="4.5" fill="${eye}"/><circle cx="181.5" cy="50.5" r="1.4" fill="#fff"/>
     ${scars}${crown}</svg>`;
 }
 
@@ -1487,11 +1495,27 @@ function renderAquarium(force = false) {
   if (!elements.aquariumView || !currentUser) return;
   const s = petStats();
 
-  if (force || renderedPetLevel !== s.idx) {
-    renderedPetLevel = s.idx;
-    elements.sharkFlip.innerHTML = sharkSvg(s.idx);
-    elements.shark.style.width = `${s.idx === 0 ? 70 : 60 + s.idx * 22}px`;
+  if (previewLevel === s.idx) previewLevel = null;   // ya es tu nivel actual
+  const shown = previewLevel ?? s.idx;
+  const locked = shown > s.idx;
+
+  if (force || renderedPetLevel !== shown || renderedLocked !== locked) {
+    renderedPetLevel = shown;
+    renderedLocked = locked;
+    elements.sharkFlip.innerHTML = sharkSvg(shown, locked);
+    elements.shark.style.width = `${shown === 0 ? 70 : 60 + shown * 22}px`;
     roamShark();
+  }
+
+  // Aviso de vista previa
+  if (elements.previewBanner) {
+    elements.previewBanner.hidden = previewLevel === null;
+    if (previewLevel !== null) {
+      const target = SHARK_LEVELS[previewLevel];
+      elements.previewText.textContent = locked
+        ? `Vista previa: ${target.name} · faltan ${Math.max(0, target.hours - s.fed)} h alimentadas`
+        : `Vista previa: ${target.name} (ya superado)`;
+    }
   }
 
   elements.petName.textContent = s.level.name;
@@ -1511,15 +1535,33 @@ function renderAquarium(force = false) {
   elements.feedOne.disabled = s.available < 1;
   elements.feedAll.disabled = s.available < 1;
 
+  // Lista de niveles: los bloqueados se ven en gris; toca uno para previsualizarlo
+  const keepScroll = elements.petLevels.scrollLeft;
   elements.petLevels.replaceChildren();
   SHARK_LEVELS.forEach((l, i) => {
-    const item = document.createElement("div");
-    item.className = `pet-level${i < s.idx ? " is-done" : i === s.idx ? " is-current" : ""}`;
-    item.innerHTML = "<strong></strong><span></span>";
+    const isLocked = i > s.idx;
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = `pet-level${i < s.idx ? " is-done" : i === s.idx ? " is-current" : " is-locked"}${previewLevel === i ? " is-previewing" : ""}`;
+    item.setAttribute("aria-label", `${isLocked ? "Previsualizar" : "Ver"} nivel ${i + 1}: ${l.name}`);
+    item.innerHTML = '<div class="pet-thumb"></div><strong></strong><span></span>';
+    item.querySelector(".pet-thumb").innerHTML = sharkSvg(i, isLocked);
     item.querySelector("strong").textContent = `${i + 1}. ${l.name}`;
     item.querySelector("span").textContent = `${l.hours} h`;
+    if (isLocked) {
+      const lock = document.createElement("span");
+      lock.className = "pet-lock";
+      lock.textContent = "🔒";
+      item.append(lock);
+    }
+    item.addEventListener("click", () => {
+      previewLevel = i === s.idx ? null : i;
+      renderAquarium();
+      elements.tank?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
     elements.petLevels.append(item);
   });
+  elements.petLevels.scrollLeft = keepScroll;
 }
 
 /* ---- Movimiento por la pecera ---- */
@@ -1690,6 +1732,7 @@ function initEvents() {
   // Mascota
   elements.feedOne?.addEventListener("click", () => feedShark(false));
   elements.feedAll?.addEventListener("click", () => feedShark(true));
+  elements.previewClose?.addEventListener("click", () => { previewLevel = null; renderAquarium(); });
 
   // Ajustes
   elements.userButton?.addEventListener("click", () => openModal(elements.settingsModal));
@@ -1777,6 +1820,8 @@ onAuthStateChanged(auth, (user) => {
     petReady = timersReady = petExists = petInitStarted = false;
     lastPetLevel = null;
     renderedPetLevel = -1;
+    previewLevel = null;
+    renderedLocked = false;
     destroyCharts();
 
     if (elements.authView) elements.authView.hidden = false;

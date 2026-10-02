@@ -285,56 +285,6 @@ input:focus, select:focus { border-color: var(--accent); outline: 0; }
 .legend-chip.is-off { opacity: .45; text-decoration: line-through; }
 .legend-chip.is-off i { background: transparent; box-shadow: inset 0 0 0 2px var(--tag); }
 
-/* ===== MÓVIL (≤700px): interfaz propia ===== */
-@media (max-width: 700px) {
-  body { font-size: 16px; }
-  .topbar { display: flex; min-height: 60px; justify-content: space-between; padding: 0 18px; background: var(--bg); backdrop-filter: none; }
-  .main-nav { position: fixed; z-index: 6; right: 16px; bottom: max(14px, env(safe-area-inset-bottom)); left: 16px; justify-content: space-around; gap: 6px; padding: 6px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-strong), inset 0 0 0 1px var(--line); }
-  .nav-button { flex: 1; padding: 15px 0; font-size: .86rem; }
-  .user-button span:last-child { display: none; }
-  .user-button { padding: 4px; }
-  .layout { display: flex; width: calc(100% - 36px); flex-direction: column; gap: 22px; padding: 6px 0 128px; }
-  .sidebar-heading { padding-bottom: 12px; }
-  .sidebar-note { display: none; }
-  .timer-sidebar { display: block; }
-  .timer-list { display: flex; gap: 12px; margin: 0 -18px; padding: 4px 18px 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
-  .timer-list::-webkit-scrollbar { display: none; }
-  .timer-card { flex: 0 0 76%; min-width: 0; scroll-snap-align: start; padding: 16px 52px 16px 18px; }
-  .workspace, .focus-panel { width: 100%; }
-  .workspace-heading { display: block; margin-bottom: 20px; }
-  .workspace-heading h1 { font-size: 1.9rem; }
-  .workspace-heading .button { width: 100%; margin-top: 16px; }
-  .heading-meta { flex-wrap: wrap; }
-  .focus-panel { padding: 24px 20px 22px; border-radius: 28px; }
-  .progress-ring { width: min(68vw, 250px); margin: 26px auto 24px; }
-  .timer-controls { flex-wrap: wrap; }
-  .timer-controls .button { min-width: calc(50% - 5px); }
-  .timer-controls .button-primary { flex-basis: 100%; }
-  .sync-banner { margin-bottom: 18px; padding: 12px 14px; }
-  .sync-text small { font-size: .7rem; }
-  .stats-heading-actions { align-items: stretch; margin-top: 16px; }
-  .stats-total-label { text-align: left; }
-  .stats-mode-toggle { width: 100%; }
-  .stats-mode-button { flex: 1; justify-content: center; padding: 11px 16px; }
-  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .metric-card { min-height: 124px; padding: 16px; }
-  .metric-card-highlight { min-height: 156px; }
-  .chart-card { padding: 18px 16px; }
-  .chart-toolbar { flex-direction: column; flex-wrap: wrap; align-items: stretch; gap: 10px; }
-  .segmented { align-self: flex-end; }
-  .chip { padding: 10px 16px; }
-  .chart-wrap { height: 250px; }
-  .month-grid { gap: 6px; }
-  .modal { width: 100%; max-width: 100%; max-height: 92vh; margin: auto 0 0; border-radius: 28px 28px 0 0; }
-  .modal-card { max-height: 92vh; padding: 26px 20px calc(30px + env(safe-area-inset-bottom)); overflow-y: auto; border-radius: 28px 28px 0 0; }
-  .modal-card::before { display: block; width: 40px; height: 4px; margin: -12px auto 18px; border-radius: 4px; background: var(--line-strong); content: ""; }
-  input, select { font-size: 16px; }
-  .modal-actions { grid-template-columns: 1fr 1fr; }
-  .modal-actions span { display: none; }
-  #delete-timer { grid-column: 1 / -1; order: 3; }
-  .toast { right: 12px; bottom: 96px; width: calc(100% - 24px); }
-}
-
 /* ===== ACUARIO ===== */
 .layout.is-aquarium { grid-template-columns: minmax(0, 1fr); }
 .layout.is-aquarium .timer-sidebar { display: none; }
@@ -369,4 +319,116 @@ input:focus, select:focus { border-color: var(--accent); outline: 0; }
 .pet-level strong { font-size: .82rem; } .pet-level span { color: var(--subtle); font-size: .7rem; }
 .pet-level.is-done { opacity: 1; }
 .pet-level.is-current { opacity: 1; box-shadow: inset 0 0 0 2px var(--accent); }
-@media (max-width: 700px) { .tank { height: 320px; } .meat-actions { width: 100%; } .meat-actions .button { flex: 1; } }
+
+
+/* ===== ÍCONOS DE NAVEGACIÓN (solo visibles en móvil) ===== */
+.nav-icon { display: none; width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ===== VISTA PREVIA DE NIVELES ===== */
+.preview-banner { position: absolute; z-index: 4; top: 12px; right: 12px; left: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 8px 8px 16px; border-radius: 999px; color: #fff; background: rgba(11,27,51,.66); backdrop-filter: blur(6px); font-size: .76rem; font-weight: 700; line-height: 1.35; }
+.preview-banner button { flex: 0 0 auto; padding: 8px 16px; border: 0; border-radius: 999px; color: #0b1b33; background: #fff; font-size: .74rem; font-weight: 800; }
+.levels-title { margin: 22px 0 10px; }
+.pet-level { position: relative; align-items: stretch; border: 0; color: var(--text); text-align: left; opacity: 1; cursor: pointer; transition: transform 140ms ease; }
+.pet-level:active { transform: scale(.97); }
+.pet-thumb { display: grid; height: 64px; margin-bottom: 6px; place-items: center; border-radius: 10px; background: linear-gradient(180deg, #bae6fd, #38bdf8); }
+.pet-thumb .shark-svg { width: auto; max-width: 86%; height: 80%; filter: none; }
+.pet-thumb .shark-tail, .pet-thumb .egg-svg { animation: none; }
+.pet-level.is-locked .pet-thumb { background: linear-gradient(180deg, #e2e8f0, #cbd5e1); }
+.pet-level.is-locked strong, .pet-level.is-locked span { color: var(--subtle); }
+.pet-level.is-previewing { box-shadow: inset 0 0 0 2px var(--accent); }
+.pet-lock { position: absolute; top: 18px; right: 20px; font-size: .8rem; }
+
+/* ===== MÓVIL (≤700px): interfaz estilo app (barra inferior + hojas) ===== */
+@media (max-width: 700px) {
+  :root { --nav-h: calc(66px + env(safe-area-inset-bottom)); }
+  body { font-size: 16px; }
+
+  /* Barra superior mínima */
+  .topbar { display: flex; min-height: 56px; justify-content: space-between; padding: 0 16px; background: var(--bg); backdrop-filter: none; }
+  .user-button span:last-child { display: none; }
+  .user-button { padding: 4px; }
+
+  /* Barra de pestañas inferior (ícono + texto) */
+  .main-nav { position: fixed; z-index: 6; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 6px 10px calc(6px + env(safe-area-inset-bottom)); border-radius: 0; background: var(--surface); box-shadow: 0 -8px 24px rgba(11,27,51,.10), inset 0 1px 0 var(--line); }
+  .nav-button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px 0; border-radius: 14px; font-size: .68rem; }
+  .nav-icon { display: block; }
+  .nav-button.is-active { color: var(--accent-bright); background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: none; }
+
+  /* Contenedor */
+  .layout { display: flex; width: calc(100% - 32px); min-height: auto; flex-direction: column; gap: 14px; padding: 6px 0 calc(var(--nav-h) + 24px); }
+
+  /* Temporizadores como fichas horizontales + botón "+" */
+  .timer-sidebar { display: flex; align-items: center; gap: 10px; }
+  .sidebar-heading { display: contents; }
+  .sidebar-heading > div { display: none; }
+  .add-button { order: 2; width: 44px; height: 44px; flex: 0 0 auto; }
+  .sidebar-note { display: none; }
+  .timer-list { order: 1; display: flex; min-width: 0; flex: 1; gap: 8px; margin: 0; padding: 2px 0; overflow-x: auto; scrollbar-width: none; }
+  .timer-list::-webkit-scrollbar { display: none; }
+  .timer-card { flex: 0 0 auto; width: auto; padding: 11px 18px; border-radius: 999px; background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--line); }
+  .timer-card.is-selected { color: var(--accent-ink); background: var(--accent); box-shadow: 0 6px 16px rgba(14,165,233,.32); }
+  .timer-card-title { max-width: 150px; margin: 0; font-size: .86rem; }
+  .timer-card-info, .timer-card-tags, .timer-card-edit { display: none; }
+  .timer-card.is-running .timer-card-title::after { display: inline-block; width: 8px; height: 8px; margin-left: 8px; border-radius: 50%; background: var(--success); content: ""; }
+
+  /* Vista: temporizador */
+  .workspace, .focus-panel { width: 100%; }
+  #timer-view { padding-bottom: 110px; }
+  .workspace-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
+  .workspace-heading h1 { font-size: 1.7rem; }
+  .workspace-heading .button { width: auto; min-height: 40px; flex: 0 0 auto; margin: 0; padding: 0 14px; }
+  .heading-meta { flex-wrap: wrap; margin-bottom: 8px; }
+  .focus-panel { padding: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .progress-ring { width: min(76vw, 300px); margin: 22px auto 16px; }
+  .session-details { display: none; }
+  .timer-message { margin-top: 4px; }
+  .timer-controls { position: fixed; z-index: 5; right: 0; bottom: var(--nav-h); left: 0; flex-wrap: nowrap; gap: 10px; padding: 14px 16px; border-radius: 24px 24px 0 0; background: var(--surface); box-shadow: 0 -10px 30px rgba(11,27,51,.12); }
+  .timer-controls .button { min-height: 58px; flex: 1; }
+  .empty-state { min-height: 320px; }
+
+  /* Vista: estadísticas */
+  .stats-title-row { display: block; }
+  .stats-heading-actions { align-items: stretch; margin-top: 12px; }
+  .stats-total-label { text-align: left; }
+  .stats-mode-toggle { width: 100%; }
+  .stats-mode-button { flex: 1; justify-content: center; padding: 12px 16px; }
+  .sync-banner { margin-bottom: 14px; padding: 12px 14px; }
+  .sync-text small { font-size: .7rem; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .metric-card { min-height: 112px; padding: 16px; }
+  .metric-card-highlight { min-height: 140px; }
+  .chart-card { padding: 18px 16px; }
+  .chart-toolbar { flex-direction: column; flex-wrap: wrap; align-items: stretch; gap: 10px; }
+  .segmented { align-self: flex-end; }
+  .chip { padding: 10px 16px; }
+  .chart-wrap { height: 250px; }
+  .month-grid { gap: 6px; }
+
+  /* Vista: acuario (pecera a pantalla completa + hoja inferior) */
+  #aquarium-view { display: flex; flex-direction: column; gap: 14px; }
+  #aquarium-view .tank { order: 1; height: 42vh; min-height: 270px; margin: 0 -16px; border-radius: 0 0 28px 28px; }
+  #aquarium-view .workspace-heading { order: 2; margin: 0; }
+  #aquarium-view .pet-progress { order: 3; margin: 0; }
+  #aquarium-view .levels-title { order: 4; margin: 6px 0 -4px; }
+  #aquarium-view .pet-levels { order: 5; display: flex; margin: 0 -16px; padding: 2px 16px 8px; overflow-x: auto; scrollbar-width: none; }
+  #aquarium-view .pet-levels::-webkit-scrollbar { display: none; }
+  #aquarium-view .pet-level { flex: 0 0 112px; }
+  .layout.is-aquarium { padding-bottom: calc(var(--nav-h) + 170px); }
+  .meat-panel { position: fixed; z-index: 5; right: 0; bottom: var(--nav-h); left: 0; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 10px; padding: 14px 16px; border-radius: 24px 24px 0 0; box-shadow: 0 -10px 30px rgba(11,27,51,.12); }
+  .meat-panel .eyebrow { display: none; }
+  .meat-count { font-size: 1.25rem; }
+  .meat-actions { width: 100%; }
+  .meat-actions .button { min-height: 50px; flex: 1; }
+
+  /* Hojas modales */
+  .modal { width: 100%; max-width: 100%; max-height: 92vh; margin: auto 0 0; border-radius: 28px 28px 0 0; }
+  .modal-card { max-height: 92vh; padding: 26px 20px calc(30px + env(safe-area-inset-bottom)); overflow-y: auto; border-radius: 28px 28px 0 0; }
+  .modal-card::before { display: block; width: 40px; height: 4px; margin: -12px auto 18px; border-radius: 4px; background: var(--line-strong); content: ""; }
+  input, select { font-size: 16px; }
+  .modal-actions { grid-template-columns: 1fr 1fr; }
+  .modal-actions span { display: none; }
+  #delete-timer { grid-column: 1 / -1; order: 3; }
+
+  /* Avisos arriba, para no tapar los botones */
+  .toast { top: max(10px, env(safe-area-inset-top)); right: 12px; bottom: auto; left: 12px; width: auto; }
+}
