@@ -30,12 +30,12 @@
           <span>Focus Cloud</span>
         </a>
         <nav class="main-nav" data-i18n-attr="aria-label:nav.main" aria-label="Main navigation">
-          <button class="nav-button is-active" type="button" data-view="timer"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><span data-i18n="nav.timers">Timers</span></button>
-          <button class="nav-button" type="button" data-view="stats"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span data-i18n="nav.stats">Statistics</span></button>
-          <button class="nav-button" type="button" data-view="aquarium"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12c3.5-5 9-6 13-3.5L21 6l-1.5 6L21 18l-6-2.5C11 18 5.5 17 2 12z"/><circle cx="14" cy="11" r="1"/></svg><span data-i18n="nav.aquarium">Aquarium</span></button>
+          <button class="nav-button is-active" type="button" data-view="timer"><i data-lucide="timer" class="nav-icon"></i><span data-i18n="nav.timers">Timers</span></button>
+          <button class="nav-button" type="button" data-view="stats"><i data-lucide="bar-chart-3" class="nav-icon"></i><span data-i18n="nav.stats">Statistics</span></button>
+          <button class="nav-button" type="button" data-view="aquarium"><i data-lucide="fish" class="nav-icon"></i><span data-i18n="nav.aquarium">Aquarium</span></button>
         </nav>
         <div class="topbar-actions">
-          <button id="settings-button" class="icon-button" type="button" data-i18n-attr="aria-label:nav.openSettings;title:settings.title" aria-label="Open settings" title="Settings"></button>
+          <button id="settings-button" class="icon-button" type="button" data-i18n-attr="aria-label:nav.openSettings;title:settings.title" aria-label="Open settings" title="Settings"><i data-lucide="settings"></i></button>
           <button id="user-button" class="user-button" type="button" data-i18n-attr="title:nav.userButton" title="Settings">
             <img id="user-photo" alt="" hidden />
             <span id="user-initial" class="user-initial">U</span>
@@ -50,14 +50,14 @@
               <p class="eyebrow" data-i18n="side.eyebrow">MY TIMERS</p>
               <h2 data-i18n="side.title">Focus spaces</h2>
             </div>
-            <button id="add-timer" class="icon-button add-button" type="button" data-i18n-attr="aria-label:side.add;title:side.add" aria-label="Add timer" title="Add timer"></button>
+            <button id="add-timer" class="icon-button add-button" type="button" data-i18n-attr="aria-label:side.add;title:side.add" aria-label="Add timer" title="Add timer"><i data-lucide="plus"></i></button>
           </div>
           <div id="timer-list" class="timer-list"></div>
           <p id="timer-limit" class="sidebar-note">You can create up to 5 timers.</p>
         </aside>
         <section id="timer-view" class="workspace view is-active" aria-labelledby="timer-heading">
           <div id="empty-state" class="empty-state" hidden>
-            <span class="empty-icon" aria-hidden="true"></span>
+            <span class="empty-icon" aria-hidden="true"><i data-lucide="clock" width="32" height="32"></i></span>
             <h1 data-i18n="empty.title">Your first timer.</h1>
             <p data-i18n="empty.copy">Create a personalized space to start tracking your focus.</p>
             <button id="empty-add-timer" class="button button-primary" type="button" data-i18n="empty.create">Create timer</button>
@@ -72,7 +72,7 @@
                 <h1 id="timer-heading">Deep study</h1>
                 <p id="timer-subtitle">25 min focus · 5 min break</p>
               </div>
-              <button id="edit-active-timer" class="button button-quiet" type="button"><span aria-hidden="true"></span> <span data-i18n="timer.edit">Edit</span></button>
+              <button id="edit-active-timer" class="button button-quiet" type="button"><i data-lucide="pencil" width="15" height="15"></i> <span data-i18n="timer.edit">Edit</span></button>
             </div>
             <article class="focus-panel">
               <div class="phase-header">
@@ -104,7 +104,7 @@
         </section>
         <section id="stats-view" class="workspace view" aria-labelledby="stats-heading" hidden>
           <div id="stats-empty" class="empty-state" hidden>
-            <span class="empty-icon" aria-hidden="true"></span>
+            <span class="empty-icon" aria-hidden="true"><i data-lucide="bar-chart-2" width="32" height="32"></i></span>
             <h1 data-i18n="stats.noneTitle">No timer selected.</h1>
             <p data-i18n="stats.noneCopy">Select or create a timer to view its statistics.</p>
           </div>
@@ -206,7 +206,10 @@
     </div>
     <dialog id="timer-modal" class="modal">
       <form id="timer-form" class="modal-card" method="dialog">
-        <div class="modal-heading"><div><p id="editor-eyebrow" class="eyebrow">NEW TIMER</p><h2 id="editor-title">Create a space</h2></div><button class="modal-close" type="button" data-close="timer-modal" data-i18n-attr="aria-label:common.close" aria-label="Close"></button></div>
+        <div class="modal-heading">
+          <div><p id="editor-eyebrow" class="eyebrow">NEW TIMER</p><h2 id="editor-title">Create a space</h2></div>
+          <button class="modal-close" type="button" data-close="timer-modal" data-i18n-attr="aria-label:common.close" aria-label="Close"><i data-lucide="x" width="16" height="16"></i></button>
+        </div>
         <label for="timer-name" data-i18n="editor.name">Name</label>
         <input id="timer-name" name="name" type="text" maxlength="48" data-i18n-attr="placeholder:editor.namePh" placeholder="E.g. Deep study" required />
         <div class="field-grid">
@@ -229,7 +232,10 @@
     </dialog>
     <dialog id="settings-modal" class="modal">
       <section class="modal-card settings-card" aria-labelledby="settings-title">
-        <div class="modal-heading"><div><p class="eyebrow" data-i18n="settings.eyebrow">PREFERENCES</p><h2 id="settings-title" data-i18n="settings.title">Settings</h2></div><button class="modal-close" type="button" data-close="settings-modal" data-i18n-attr="aria-label:common.close" aria-label="Close"></button></div>
+        <div class="modal-heading">
+          <div><p class="eyebrow" data-i18n="settings.eyebrow">PREFERENCES</p><h2 id="settings-title" data-i18n="settings.title">Settings</h2></div>
+          <button class="modal-close" type="button" data-close="settings-modal" data-i18n-attr="aria-label:common.close" aria-label="Close"><i data-lucide="x" width="16" height="16"></i></button>
+        </div>
         <div class="setting-row"><div><strong data-i18n="settings.language">Language</strong><span data-i18n="settings.languageDesc">Choose the app language.</span></div><select id="language-select" class="language-select" data-i18n-attr="aria-label:settings.language" aria-label="Language"><option value="en">English</option><option value="es">Español</option></select></div>
         <div class="setting-row"><div><strong data-i18n="settings.dark">Dark mode</strong><span data-i18n="settings.darkDesc">Use the dark navy style.</span></div><label class="switch"><input id="dark-mode-toggle" type="checkbox" /><span></span></label></div>
         <div class="setting-row volume-row"><div><strong data-i18n="settings.volume">Alarm volume</strong><span id="volume-label">70%</span></div><input id="volume-slider" type="range" min="0" max="100" value="70" data-i18n-attr="aria-label:settings.volume" aria-label="Alarm volume" /></div>
@@ -239,7 +245,10 @@
     </dialog>
     <dialog id="breakdown-modal" class="modal">
       <section class="modal-card breakdown-card" aria-labelledby="breakdown-title">
-        <div class="modal-heading"><div><p id="breakdown-eyebrow" class="eyebrow">BREAKDOWN</p><h2 id="breakdown-title">Statistics</h2></div><button class="modal-close" type="button" data-close="breakdown-modal" data-i18n-attr="aria-label:common.close" aria-label="Close"></button></div>
+        <div class="modal-heading">
+          <div><p id="breakdown-eyebrow" class="eyebrow">BREAKDOWN</p><h2 id="breakdown-title">Statistics</h2></div>
+          <button class="modal-close" type="button" data-close="breakdown-modal" data-i18n-attr="aria-label:common.close" aria-label="Close"><i data-lucide="x" width="16" height="16"></i></button>
+        </div>
         <div id="breakdown-list" class="breakdown-list"></div>
       </section>
     </dialog>
@@ -265,9 +274,23 @@
       <button id="game-back" class="game-back" type="button">BACK</button>
       <div id="game-banner" class="game-banner" role="status" aria-live="polite"></div>
       <div id="game-joy" class="game-joy" aria-hidden="true"></div>
-      <button id="game-bite" class="game-bite" type="button" aria-label="Bite"></button>
+      <button id="game-bite" class="game-bite" type="button" aria-label="Bite"><i data-lucide="zap"></i></button>
     </section>
-    <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-icon" aria-hidden="true"></span><p id="toast-message"></p><button id="toast-close" type="button" data-i18n-attr="aria-label:toast.close" aria-label="Close notice"></button></div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden>
+      <span id="toast-icon" aria-hidden="true"><i data-lucide="check" width="14" height="14"></i></span>
+      <p id="toast-message"></p>
+      <button id="toast-close" type="button" data-i18n-attr="aria-label:toast.close" aria-label="Close notice"><i data-lucide="x" width="14" height="14"></i></button>
+    </div>
+
+    <!-- Librería Lucide Icons (Versión UMD para entorno Web / Offline Ready) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Carga local de Chart.js -->
+    <script src="./libs/chart.umd.min.js"></script>
+    <script type="module" src="app.js"></script>
+  
+
+<!-- Librería Lucide Icons Local (Offline Ready) -->
+    <script src="./libs/lucide.min.js"></script>
     <!-- Carga local de Chart.js -->
     <script src="./libs/chart.umd.min.js"></script>
     <script type="module" src="app.js"></script>

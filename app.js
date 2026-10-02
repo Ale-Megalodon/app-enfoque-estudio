@@ -1,5 +1,5 @@
 /* ==========================================================================
-   APP DE ESTUDIO - FOCUS CLOUD (Versión Offline-First / App Store Ready)
+   APP DE ESTUDIO - FOCUS CLOUD (Versión Offline-First / Lucide Icons Ready)
    ========================================================================== */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
@@ -862,7 +862,7 @@ function renderTimers() {
     card.innerHTML = `
       <strong class="timer-card-title"></strong>
       <span class="timer-card-info"></span>
-      <button type="button" class="timer-card-edit" aria-label="${t("timer.editAria")}">✏️</button>`;
+      <button type="button" class="timer-card-edit" aria-label="${t("timer.editAria")}"><i data-lucide="pencil" width="14" height="14"></i></button>`;
     card.querySelector(".timer-card-title").textContent = timer.title;
     const info = card.querySelector(".timer-card-info");
     info.textContent = `${timer.focusMinutes} / ${timer.breakMinutes} min · ${priorityText(timer.priority)}`;
@@ -897,6 +897,7 @@ function renderTimers() {
     card.querySelector(".timer-card-edit").addEventListener("click", () => openTimerEditor(timer));
     elements.timerList.append(card);
   });
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function renderTimerWorkspace() {
@@ -1745,6 +1746,7 @@ function applyLanguage() {
     renderAll();
     renderAquarium();
   }
+  if (window.lucide) window.lucide.createIcons();
 }
 
 async function persistSettings(patch) {
@@ -2022,9 +2024,6 @@ function listenToUserData(user) {
 /* ==========================================================================
    16. EVENTOS DE INTERFAZ
    ========================================================================== */
-/* ==========================================================================
-   16. EVENTOS DE INTERFAZ (Corrección de modales y botones de cancelación)
-   ========================================================================== */
 function initEvents() {
   elements.googleLogin?.addEventListener("click", async () => {
     try {
@@ -2094,7 +2093,7 @@ function initEvents() {
     renderCharts();
   });
 
-  // MANEJADOR GLOBAL PARA CERRAR MODALES (Aplica para botones "Cancelar" y elementos con [data-close])
+  // Manejador global para cerrar modales (Botón Cancelar y atributos [data-close])
   document.querySelectorAll("[data-close]").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       const modalId = btn.getAttribute("data-close");
@@ -2107,6 +2106,7 @@ function initEvents() {
     if (elements.toast) elements.toast.hidden = true;
   });
 }
+
 /* ==========================================================================
    17. AUTENTICACIÓN E INICIALIZACIÓN
    ========================================================================== */
@@ -2129,6 +2129,7 @@ onAuthStateChanged(auth, (user) => {
     }
     setupNotifications();
     listenToUserData(user);
+    if (window.lucide) window.lucide.createIcons();
   } else {
     if (unsubscribeTimers) unsubscribeTimers();
     if (unsubscribeProfile) unsubscribeProfile();
@@ -2151,3 +2152,4 @@ onAuthStateChanged(auth, (user) => {
 
 applyLanguage();
 initEvents();
+if (window.lucide) window.lucide.createIcons();
