@@ -1,4 +1,4 @@
-/* Configuración central - Mundo Híbrido, Ecosistema Expandido y Bestiario Visual - Beta 4.1 */
+/* Configuración central - Mundo Híbrido, Ecosistema Expandido y Bestiario Visual - Beta 4.2 */
 
 export const SAVE_VERSION = 3;
 export const WORLD = { w: 16000, h: 8000 };

@@ -1,4 +1,4 @@
-/* Sistemas del minijuego (Entrada, Audio, Generación y Comportamiento de Criaturas) */
+/* Sistemas del minijuego (Beta 4.2) - Entrada, Audio, Generación y Comportamiento */
 import { ZONES, WORLD } from "./data.js";
 
 // 1. GESTIÓN DE ENTRADA (Teclado y Joystick Táctil)
@@ -122,9 +122,7 @@ export function createAudio(volumeGetter) {
       treasure: () => { playTone(523.25, "sine", 0.1); setTimeout(() => playTone(659.25, "sine", 0.1), 100); setTimeout(() => playTone(783.99, "sine", 0.2), 200); },
       zone: () => { playTone(350, "triangle", 0.4); }
     },
-    ambience(zoneIndex) {
-      // Audio de ambiente por zona (silencioso o sutil)
-    },
+    ambience(zoneIndex) {},
     stop() {
       if (ctx) ctx.close().catch(() => {});
       ctx = null;
@@ -150,7 +148,7 @@ export function spawn(def, zone, rnd) {
   };
 }
 
-// 4. COMPORTAMIENTO E INTELIGENCIA ARTIFICIAL DE CRIATURAS (Actualizado Beta 4.1)
+// 4. COMPORTAMIENTO E INTELIGENCIA ARTIFICIAL DE CRIATURAS
 export function updateCreature(c, dt, p, power, rnd) {
   const d = c.def;
   const dx = p.x - c.x;

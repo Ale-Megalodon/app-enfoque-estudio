@@ -1,4 +1,4 @@
-/* Motor del minijuego (Beta 4.2) - Corrección de funciones de dibujo del jugador, bugs visuales e IA */
+/* Motor del minijuego (Beta 4.2) - Corrección de coordenadas del jugador, bugs visuales e IA */
 import { BP, WORLD, LEVELS, SHARK_COLORS, ZONES, GATES, POIS, TREASURES, TREASURE_PER_ZONE, CREATURES, TEXT, SAVE_VERSION } from "./data.js";
 import { createInput, createAudio, spawn, updateCreature } from "./systems.js";
 
@@ -37,9 +37,8 @@ const PetPaths = {
   gills: new Path2D("M140 56 q4 8 0 16 M148 55 q4 8 0 16")
 };
 
-// Funciones de renderizado vectorial para el jugador (Huevito y Tiburón)
-function exactEgg(s) {
-  const ctx = canvas.getContext("2d");
+// Funciones de renderizado vectorial para el jugador (Reciben el ctx transformado correctamente)
+function exactEgg(ctx, s) {
   ctx.fillStyle = "#f5e6c8";
   ctx.beginPath();
   ctx.ellipse(0, 0, s * 0.8, s * 1.1, 0, 0, Math.PI * 2);
@@ -49,8 +48,7 @@ function exactEgg(s) {
   ctx.stroke();
 }
 
-function exactShark(s, color, tailWag) {
-  const ctx = canvas.getContext("2d");
+function exactShark(ctx, s, color, tailWag) {
   ctx.save();
   const scale = s / 35;
   ctx.scale(scale, scale);
@@ -419,8 +417,8 @@ export function createGame(o) {
     const frameCount = p.biteT > 0 ? 2 : 4; 
     
     if (!AssetManager.drawSprite(ctx, spriteId, 0, 0, st.size * 3, st.size * 1.5, time, frameCount, 10)) {
-        if (S.lvl === 0) exactEgg(st.size); 
-        else exactShark(st.size, SHARK_COLORS[S.lvl], Math.sin(time * 9) * st.size);
+        if (S.lvl === 0) exactEgg(ctx, st.size); 
+        else exactShark(ctx, st.size, SHARK_COLORS[S.lvl], Math.sin(time * 9) * st.size);
     }
     ctx.restore();
 
