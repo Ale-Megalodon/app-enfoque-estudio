@@ -1473,13 +1473,13 @@ function sharkSvg(idx, locked = false) {
   if (idx === 0) {
     return `<svg viewBox="0 0 100 130" class="shark-svg egg-svg" role="img" aria-label="Huevito"><ellipse cx="50" cy="70" rx="38" ry="52" fill="#f5e6c8"/><circle cx="36" cy="55" r="6" fill="#e2c99a"/><circle cx="62" cy="82" r="8" fill="#e2c99a"/><circle cx="58" cy="44" r="4" fill="#e2c99a"/></svg>`;
   }
+  
   // Nivel bloqueado: silueta gris
   const c = locked ? "#8b96a5" : SHARK_COLORS[idx];
   const belly = locked ? "#cfd6df" : "#eaf6ff";
-  const gold = locked ? "#b6bfcb" : "#fbbf24";
   const eye = locked ? "#4b5563" : "#0b1b33";
-  const crown = idx >= 8 ? `<path d="M150 36 L154 20 L160 29 L166 18 L172 36Z" fill="${gold}"/>` : "";
-  const scars = idx >= 5 ? `<path d="M120 50 l14 10 M126 46 l14 10" stroke="#fff" stroke-opacity=".35" stroke-width="2" stroke-linecap="round"/>` : "";
+  
+  // Eliminamos las cicatrices y la corona; usamos solo la base limpia
   return `<svg viewBox="0 0 220 110" class="shark-svg" role="img" aria-label="${SHARK_LEVELS[idx].name}">
     <g class="shark-tail"><path d="M40 55 L4 18 Q20 55 4 92 Z" fill="${c}"/></g>
     <path d="M30 55 Q80 8 150 30 Q200 45 214 58 Q190 84 140 88 Q70 98 30 55Z" fill="${c}"/>
@@ -1488,9 +1488,8 @@ function sharkSvg(idx, locked = false) {
     <path d="M120 82 L98 106 L146 86Z" fill="${c}" style="filter:brightness(.8)"/>
     <path d="M140 56 q4 8 0 16 M148 55 q4 8 0 16" stroke="#0b1b33" stroke-opacity=".25" stroke-width="2" fill="none" stroke-linecap="round"/>
     <circle cx="180" cy="52" r="4.5" fill="${eye}"/><circle cx="181.5" cy="50.5" r="1.4" fill="#fff"/>
-    ${scars}${crown}</svg>`;
+  </svg>`;
 }
-
 function renderAquarium(force = false) {
   if (!elements.aquariumView || !currentUser) return;
   const s = petStats();
@@ -1830,3 +1829,33 @@ onAuthStateChanged(auth, (user) => {
 });
 
 initEvents();
+// Mascota
+  elements.feedOne?.addEventListener("click", () => feedShark(false));
+  elements.feedAll?.addEventListener("click", () => feedShark(true));
+  elements.previewClose?.addEventListener("click", () => { previewLevel = null; renderAquarium(); });
+
+  // NUEVO: Mover tiburón al hacer clic en la pecera
+  elements.tank?.addEventListener("click", (e) => {
+    // Evitamos que interactúe si hacemos clic en un botón o en la comida que cae
+    if (e.target.closest("button") || e.target.classList.contains("meat-drop")) return;
+    
+    const rect = elements.tank.getBoundingClientRect();
+    const targetX = e.clientX - rect.left;
+    const targetY = e.clientY - rect.top;
+    
+    roamShark(targetX, targetY);
+    startRoaming(); // Reinicia su nado automático para que no huya enseguida
+  });
+
+  // NUEVO: Botón para mostrar/ocultar los niveles
+  document.querySelector("#toggle-levels-btn")?.addEventListener("click", (e) => {
+    const levelsDiv = elements.petLevels;
+    levelsDiv.hidden = !levelsDiv.hidden;
+    e.target.textContent = levelsDiv.hidden ? "Previsualizar" : "Ocultar previsualizaciones";
+    
+    // Si el usuario lo cierra, cancelamos la previsualización activa
+    if (levelsDiv.hidden && previewLevel !== null) {
+      previewLevel = null;
+      renderAquarium();
+    }
+  });
