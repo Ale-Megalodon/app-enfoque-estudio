@@ -32,6 +32,8 @@ import {
   signInWithPopup,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import { createGame } from "./game/engine.js";
+import { attachMultiClick } from "./game/easter-egg.js";
 import {
   collection,
   deleteDoc,
@@ -1943,7 +1945,7 @@ const SHARK_LEVELS = [
 ];
 const SHARK_COLORS = ["#f5e6c8", "#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7", "#2563eb", "#4f46e5", "#64748b", "#7c3aed", "#1e293b"];
 
-let pet = { earnedMinutes: 0, meatFed: 0 };
+let pet = { earnedMinutes: 0, meatFed: 0, game: null };
 let petReady = false, timersReady = false, petExists = false, petInitStarted = false;
 let unsubscribePet = null, lastPetLevel = null, renderedPetLevel = -1, roamId = null;
 let followUntil = 0;   // mientras sea futuro, el tiburón no nada al azar (sigue tu click)
@@ -2106,7 +2108,7 @@ function listenToPet(user) {
     petReady = true;
     petExists = snap.exists();
     const d = snap.exists() ? snap.data() : {};
-    pet = { earnedMinutes: numeric(d.earnedMinutes, 0), meatFed: numeric(d.meatFed, 0) };
+    pet = { earnedMinutes: numeric(d.earnedMinutes, 0), meatFed: numeric(d.meatFed, 0), game: d.game || null };
     maybeInitPet();
     const idx = petStats().idx;
     if (lastPetLevel !== null && idx > lastPetLevel) {
@@ -2117,6 +2119,28 @@ function listenToPet(user) {
     renderAquarium();
   });
 }
+
+/* ---- Minijuego secreto: 5 clics sobre el tiburón ----
+   El nivel sale de petStats() (horas). Los Break Points viven aparte en pet.game y no afectan la evolución. */
+const eggCount = document.querySelector("#egg-count");
+const underwaterGame = createGame({
+  el: {
+    view: document.querySelector("#game-view"), canvas: document.querySelector("#game-canvas"), back: document.querySelector("#game-back"),
+    joy: document.querySelector("#game-joy"), biteBtn: document.querySelector("#game-bite"), banner: document.querySelector("#game-banner"),
+    hud: { lvl: document.querySelector("#gh-lvl"), bp: document.querySelector("#gh-bp"), zone: document.querySelector("#gh-zone"), hp: document.querySelector("#gh-hp"), en: document.querySelector("#gh-en") }
+  },
+  getLevel: () => petStats().idx,
+  name: (i) => sharkName(i),
+  lang: () => settings.language,
+  volume: () => settings.volume,
+  load: () => pet.game,
+  save: (game) => { if (currentUser) setDoc(petReference(), { game }, { merge: true }).catch((e) => console.error(e)); }
+});
+attachMultiClick(elements.shark, {
+  count: 5, gapMs: 1200,
+  onTick: (n) => { eggCount.hidden = n === 0; eggCount.textContent = `${n}/5`; },
+  onTrigger: () => underwaterGame.open()
+});
 
 /* ==========================================================================
    15. FIRESTORE LISTENERS
@@ -2302,7 +2326,7 @@ onAuthStateChanged(auth, (user) => {
     stopRoaming();
     timers = [];
     selectedTimerId = null;
-    pet = { earnedMinutes: 0, meatFed: 0 };
+    pet = { earnedMinutes: 0, meatFed: 0, game: null };
     petReady = timersReady = petExists = petInitStarted = false;
     lastPetLevel = null;
     renderedPetLevel = -1;

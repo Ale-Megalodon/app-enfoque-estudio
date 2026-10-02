@@ -434,3 +434,26 @@ input:focus, select:focus { border-color: var(--accent); outline: 0; }
 /* Selector de idioma (Ajustes) */
 .language-select { width: auto; min-width: 140px; min-height: 44px; margin: 0; padding: 0 14px; cursor: pointer; }
 @media (max-width: 480px) { .language-select { min-width: 120px; } }
+
+/* ===== Minijuego submarino (Easter egg) ===== */
+.tank { position: relative; }
+.egg-count { position: absolute; top: 10px; right: 12px; padding: 3px 10px; border-radius: 99px; color: #fff; background: rgba(0,0,0,.28); font-size: .75rem; font-weight: 800; pointer-events: none; }
+.game-view { position: fixed; inset: 0; z-index: 100; background: #02121f; clip-path: circle(0% at 50% 60%); transition: clip-path .55s cubic-bezier(.2,.7,.2,1); touch-action: none; user-select: none; }
+.game-view[hidden] { display: none; }
+.game-view.is-open { clip-path: circle(150% at 50% 60%); }
+#game-canvas { display: block; width: 100%; height: 100%; }
+.game-hud { position: absolute; top: 14px; left: 14px; display: grid; gap: 6px; width: min(260px, 60vw); padding: 10px 12px; border-radius: 14px; color: #fff; background: rgba(2,18,31,.55); backdrop-filter: blur(6px); font-size: .82rem; pointer-events: none; }
+.gh-bp { color: #ffd54a; font-size: 1.05rem; }
+.gbar { height: 8px; border-radius: 99px; background: rgba(255,255,255,.18); overflow: hidden; }
+.gbar i { display: block; height: 100%; border-radius: inherit; transition: width .15s; }
+.gbar-hp i { background: #ff5d6c; } .gbar-en i { background: #ffb347; }
+.game-back { position: absolute; top: 14px; right: 14px; padding: 9px 14px; border: 1px solid rgba(255,255,255,.35); border-radius: 99px; color: #fff; background: rgba(2,18,31,.55); font-weight: 800; cursor: pointer; }
+.game-back:hover { background: rgba(2,18,31,.85); }
+.game-banner { position: absolute; top: 22%; left: 50%; max-width: 90vw; padding: 10px 20px; border-radius: 12px; color: #fff; background: rgba(2,18,31,.7); font-weight: 900; letter-spacing: .04em; text-align: center; opacity: 0; transform: translate(-50%, 8px); transition: opacity .25s, transform .25s; pointer-events: none; }
+.game-banner.show { opacity: 1; transform: translate(-50%, 0); }
+.game-banner.warn { background: rgba(190,40,60,.85); } .game-banner.good { background: rgba(20,120,110,.85); }
+.game-joy, .game-bite { display: none; position: absolute; bottom: 28px; border-radius: 50%; }
+.game-joy { left: 28px; width: 130px; height: 130px; background: rgba(255,255,255,.14); border: 2px solid rgba(255,255,255,.3); }
+.game-bite { right: 28px; width: 92px; height: 92px; border: 0; font-size: 2rem; background: rgba(255,90,100,.7); }
+@media (pointer: coarse) { .game-joy, .game-bite { display: block; } }
+@media (prefers-reduced-motion: reduce) { .game-view, .game-banner { transition: none; } }

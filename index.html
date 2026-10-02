@@ -198,6 +198,7 @@
             <span class="bubble"></span><span class="bubble"></span><span class="bubble"></span><span class="bubble"></span><span class="bubble"></span>
             <div id="shark" class="shark"><div id="shark-flip" class="shark-flip"></div></div>
             <div class="sand"></div>
+            <span id="egg-count" class="egg-count" hidden></span>
           </div>
 
           <div class="pet-progress"><div id="pet-bar" class="pet-bar"></div></div>
@@ -269,6 +270,19 @@
         <button class="button button-primary button-large modal-close" type="button" data-close="levelup-modal" style="width: 100%;" data-i18n="level.great">Great!</button>
       </section>
     </dialog>
+
+    <section id="game-view" class="game-view" hidden aria-label="Underwater world">
+      <canvas id="game-canvas"></canvas>
+      <div class="game-hud">
+        <strong id="gh-lvl"></strong><strong id="gh-bp" class="gh-bp"></strong>
+        <div class="gbar gbar-hp" title="❤️"><i id="gh-hp"></i></div><div class="gbar gbar-en" title="🍖"><i id="gh-en"></i></div>
+        <span id="gh-zone"></span>
+      </div>
+      <button id="game-back" class="game-back" type="button">← BACK</button>
+      <div id="game-banner" class="game-banner" role="status" aria-live="polite"></div>
+      <div id="game-joy" class="game-joy" aria-hidden="true"></div>
+      <button id="game-bite" class="game-bite" type="button" aria-label="Bite">🦈</button>
+    </section>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-icon" aria-hidden="true">✓</span><p id="toast-message"></p><button id="toast-close" type="button" data-i18n-attr="aria-label:toast.close" aria-label="Close notice">×</button></div>
 
