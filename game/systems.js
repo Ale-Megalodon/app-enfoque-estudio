@@ -1,12 +1,13 @@
 /* Entrada (teclado/ratón/táctil), audio procedural e IA de criaturas. */
 import { CREATURES, ZONES, WORLD } from "./data.js";
 
-export function createInput(canvas, joyEl, biteEl) {
+export function createInput(canvas, joyEl, biteEl, dashEl) {
   const keys = new Set();
   let joy = { x: 0, y: 0 };
   let bite = false;
+  let isDashing = false;
 
-  const map = { arrowleft: "a", arrowright: "d", arrowup: "w", arrowdown: "s" };
+  const map = { arrowleft: "a", arrowright: "d", arrowup: "w", arrowdown: "s", shift: "shift" };
 
   const down = (e) => {
     const k = e.key.toLowerCase();
@@ -18,8 +19,14 @@ export function createInput(canvas, joyEl, biteEl) {
 
   window.addEventListener("keydown", down);
   window.addEventListener("keyup", up);
+  
   canvas.addEventListener("pointerdown", () => { bite = true; });
+  
+  // Controles táctiles
   biteEl?.addEventListener("pointerdown", (e) => { e.stopPropagation(); bite = true; });
+  dashEl?.addEventListener("pointerdown", (e) => { e.stopPropagation(); isDashing = true; });
+  dashEl?.addEventListener("pointerup", (e) => { e.stopPropagation(); isDashing = false; });
+  dashEl?.addEventListener("pointerleave", (e) => { e.stopPropagation(); isDashing = false; });
 
   joyEl?.addEventListener("pointermove", (e) => {
     if (!(e.buttons || e.pointerType === "touch")) return;
@@ -46,6 +53,9 @@ export function createInput(canvas, joyEl, biteEl) {
       bite = false;
       return b;
     },
+    dash() {
+      return keys.has("shift") || isDashing;
+    },
     destroy() {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
@@ -68,7 +78,7 @@ export function createAudio(getVolume) {
       g.gain.setValueAtTime(v * vol(), c.currentTime);
       g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + d);
       o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d);
-    } catch (_) { /* audio opcional */ }
+    } catch (_) {}
   }
 
   return {
@@ -115,47 +125,42 @@ export function updateCreature(c, dt, p, power, rnd) {
   const dx = p.x - c.x;
   const dy = p.y - c.y;
   const dist = Math.hypot(dx, dy) || 1;
-  const stronger = d.r > power; // La criatura es más fuerte que el tiburón
-  const awake = dist < 450 + d.s; // Distancia de detección
+  const stronger = d.r > power; 
+  const awake = dist < 500 + d.s; 
 
   let want = null;
-  let sp = d.sp * 0.4; // Velocidad base de patrullaje
+  let sp = d.sp * 0.4; 
   c.t -= dt;
 
-  // Patrullaje aleatorio
   if (c.t <= 0) {
     c.a += (rnd() - 0.5) * 2;
     c.t = 1 + rnd() * 3;
   }
 
-  // Máquina de estados lógicos basada en el poder del jugador
   if (awake && d.b !== "ignore") {
-    // Si la criatura siempre huye, o si es un depredador pero el tiburón ha evolucionado a ser más fuerte
     const fleeing = d.b === "flee" || d.b === "school" || (!stronger && d.b === "chase");
 
-    if (fleeing && dist < 350) {
-      want = Math.atan2(-dy, -dx); // Huir en dirección opuesta
-      sp = d.sp * 1.2; // Acelerar por el pánico
+    if (fleeing && dist < 380) {
+      want = Math.atan2(-dy, -dx); 
+      sp = d.sp * 1.25; 
     } 
-    else if (d.b === "chase" && stronger && dist < 500) {
-      want = Math.atan2(dy, dx); // Perseguir agresivamente al tiburón menor
-      sp = d.sp * 1.1;
+    else if (d.b === "chase" && stronger && dist < 550) {
+      want = Math.atan2(dy, dx); 
+      sp = d.sp * 1.15;
     } 
-    else if (d.b === "guard" && stronger && dist < 300 + d.s) {
-      want = Math.atan2(dy, dx); // Atacar al invasor que entra a su territorio
-      sp = d.sp * 1.3;
+    else if (d.b === "guard" && stronger && dist < 350 + d.s) {
+      want = Math.atan2(dy, dx); 
+      sp = d.sp * 1.35;
     }
   }
 
   if (want !== null) {
-    // Interpolación del giro para evitar rotaciones instantáneas (movimiento más orgánico)
     let da = want - c.a;
     da = Math.atan2(Math.sin(da), Math.cos(da));
     c.a += da * Math.min(1, dt * 4);
   }
 
-  // Retorno al hábitat: Evita que las criaturas persigan infinitamente fuera de su zona o se acumulen en los bordes
-  if (Math.hypot(c.hx - c.x, c.hy - c.y) > 600 && want === null) {
+  if (Math.hypot(c.hx - c.x, c.hy - c.y) > 700 && want === null) {
     let returnAngle = Math.atan2(c.hy - c.y, c.hx - c.x);
     let da = returnAngle - c.a;
     da = Math.atan2(Math.sin(da), Math.cos(da));
@@ -165,7 +170,6 @@ export function updateCreature(c, dt, p, power, rnd) {
   c.x += Math.cos(c.a) * sp * dt;
   c.y += Math.sin(c.a) * sp * dt;
 
-  // Lógica estricta de colisión con los límites del bioma y profundidad
   const z = ZONES[c.zone];
   if (z) {
      c.x = Math.min(z.x + z.w - 30, Math.max(z.x + 30, c.x));
