@@ -60,7 +60,7 @@ export const TREASURE_PER_ZONE = [3, 4, 5, 6, 5, 5, 6];
 // Criaturas. r = rango (comestible si r <= power). s = tamaño px. b = comportamiento.
 // n = cantidad por 1000px. y = franja de profundidad (0 superficie..1 fondo). dm = daño por contacto.
 export const CREATURES = [
-  { id: "plankton", e: "✦", r: 0, s: 10, bp: BP.plankton, b: "school", z: [0, 1], n: 14, sp: 20, heal: 1 },
+  { id: "plankton", e: "✦", r: 0, s: 10, bp: BP.plankton, b: "school", z: [0, 1], n: 30, sp: 20, heal: 1 },
   { id: "shrimp", e: "🦐", r: 1, s: 16, bp: BP.shrimp, b: "flee", z: [0, 1], n: 8, sp: 60 },
   { id: "crab", e: "🦀", r: 1, s: 18, bp: BP.small, b: "ignore", z: [0, 1], n: 5, sp: 25, y: [0.85, 1] },
   { id: "sardine", e: "🐟", r: 2, s: 18, bp: BP.small, b: "school", z: [0, 1, 2], n: 12, sp: 70 },
