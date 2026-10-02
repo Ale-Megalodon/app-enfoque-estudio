@@ -189,4 +189,4 @@ export function createGame(o) {
   back.addEventListener("click", close);
   window.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
   return { open, close };
-}s
+}
