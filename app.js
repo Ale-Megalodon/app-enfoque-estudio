@@ -2022,6 +2022,9 @@ function listenToUserData(user) {
 /* ==========================================================================
    16. EVENTOS DE INTERFAZ
    ========================================================================== */
+/* ==========================================================================
+   16. EVENTOS DE INTERFAZ (Corrección de modales y botones de cancelación)
+   ========================================================================== */
 function initEvents() {
   elements.googleLogin?.addEventListener("click", async () => {
     try {
@@ -2090,14 +2093,20 @@ function initEvents() {
     }
     renderCharts();
   });
-  document.querySelectorAll(".modal-close").forEach((btn) => {
-    btn.addEventListener("click", (e) => closeModal(e.target.closest("dialog")));
+
+  // MANEJADOR GLOBAL PARA CERRAR MODALES (Aplica para botones "Cancelar" y elementos con [data-close])
+  document.querySelectorAll("[data-close]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const modalId = btn.getAttribute("data-close");
+      const modal = modalId ? document.getElementById(modalId) : btn.closest("dialog");
+      if (modal) closeModal(modal);
+    });
   });
+
   elements.toastClose?.addEventListener("click", () => {
     if (elements.toast) elements.toast.hidden = true;
   });
 }
-
 /* ==========================================================================
    17. AUTENTICACIÓN E INICIALIZACIÓN
    ========================================================================== */
