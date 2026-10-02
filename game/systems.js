@@ -1,4 +1,4 @@
-/* Entrada (teclado/ratón/táctil), audio procedural e IA de criaturas - Beta 3.0 (Soporte Topografía Híbrida X/Y) */
+/* Entrada, Audio Procedural e IA de Criaturas - Beta 3.2 (Superficie y Profundidad Estricta) */
 import { CREATURES, ZONES, WORLD } from "./data.js";
 
 export function createInput(canvas, joyEl, biteEl, dashEl) {
@@ -113,9 +113,9 @@ export function createAudio(getVolume) {
 export const speciesById = Object.fromEntries(CREATURES.map((c) => [c.id, c]));
 
 export function spawn(def, zone, rnd) {
+  // Asegura que las criaturas de fondo (ej. cangrejos con y: [0.9, 1]) nazcan en el suelo
   const [y0, y1] = def.y || [0.05, 0.95];
   const x = zone.x + 60 + rnd() * (zone.w - 120);
-  // CORRECCIÓN: La profundidad de aparición ahora es relativa a los límites en Y del bioma
   const y = zone.y + (zone.h * (y0 + rnd() * (y1 - y0)));
   return { def, x, y, hx: x, hy: y, a: rnd() * 6.28, zone: ZONES.indexOf(zone), t: rnd() * 5, hit: 0 };
 }
@@ -160,6 +160,7 @@ export function updateCreature(c, dt, p, power, rnd) {
     c.a += da * Math.min(1, dt * 4);
   }
 
+  // Correa (Leash): Evita que persigan eternamente o se queden atascadas
   if (Math.hypot(c.hx - c.x, c.hy - c.y) > 700 && want === null) {
     let returnAngle = Math.atan2(c.hy - c.y, c.hx - c.x);
     let da = returnAngle - c.a;
@@ -172,8 +173,9 @@ export function updateCreature(c, dt, p, power, rnd) {
 
   const z = ZONES[c.zone];
   if (z) {
-     // CORRECCIÓN: Los mobs ahora respetan estrictamente su rango de profundidad (Y) asignado
      c.x = Math.min(z.x + z.w - 30, Math.max(z.x + 30, c.x));
+     // BARRERA DE SUPERFICIE Y PROFUNDIDAD: 
+     // El límite Y=30 evita que salgan volando hacia el cielo en la Costa o Mar Abierto.
      c.y = Math.min(z.y + z.h - 30, Math.max(z.y + 30, c.y));
   } else {
      c.y = Math.min(WORLD.h - 30, Math.max(30, c.y));
