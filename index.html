@@ -23,7 +23,6 @@
         <p class="auth-note" data-i18n="auth.note">We only use Google to identify you and sync your study space.</p>
       </section>
     </main>
-
     <div id="app" class="app" hidden>
       <header class="topbar">
         <a class="brand" href="#timer" data-i18n-attr="aria-label:nav.brand" aria-label="Focus Cloud, go to timers">
@@ -36,7 +35,7 @@
           <button class="nav-button" type="button" data-view="aquarium"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12c3.5-5 9-6 13-3.5L21 6l-1.5 6L21 18l-6-2.5C11 18 5.5 17 2 12z"/><circle cx="14" cy="11" r="1"/></svg><span data-i18n="nav.aquarium">Aquarium</span></button>
         </nav>
         <div class="topbar-actions">
-          <button id="settings-button" class="icon-button" type="button" data-i18n-attr="aria-label:nav.openSettings;title:settings.title" aria-label="Open settings" title="Settings">⚙</button>
+          <button id="settings-button" class="icon-button" type="button" data-i18n-attr="aria-label:nav.openSettings;title:settings.title" aria-label="Open settings" title="Settings">⚙️</button>
           <button id="user-button" class="user-button" type="button" data-i18n-attr="title:nav.userButton" title="Settings">
             <img id="user-photo" alt="" hidden />
             <span id="user-initial" class="user-initial">U</span>
@@ -44,7 +43,6 @@
           </button>
         </div>
       </header>
-
       <main class="layout">
         <aside class="timer-sidebar" data-i18n-attr="aria-label:side.aria" aria-label="Your timers">
           <div class="sidebar-heading">
@@ -52,20 +50,18 @@
               <p class="eyebrow" data-i18n="side.eyebrow">MY TIMERS</p>
               <h2 data-i18n="side.title">Focus spaces</h2>
             </div>
-            <button id="add-timer" class="icon-button add-button" type="button" data-i18n-attr="aria-label:side.add;title:side.add" aria-label="Add timer" title="Add timer">✎</button>
+            <button id="add-timer" class="icon-button add-button" type="button" data-i18n-attr="aria-label:side.add;title:side.add" aria-label="Add timer" title="Add timer">＋</button>
           </div>
           <div id="timer-list" class="timer-list"></div>
           <p id="timer-limit" class="sidebar-note">You can create up to 5 timers.</p>
         </aside>
-
         <section id="timer-view" class="workspace view is-active" aria-labelledby="timer-heading">
           <div id="empty-state" class="empty-state" hidden>
-            <span class="empty-icon" aria-hidden="true">◷</span>
+            <span class="empty-icon" aria-hidden="true">⏳</span>
             <h1 data-i18n="empty.title">Your first timer.</h1>
             <p data-i18n="empty.copy">Create a personalized space to start tracking your focus.</p>
             <button id="empty-add-timer" class="button button-primary" type="button" data-i18n="empty.create">Create timer</button>
           </div>
-
           <div id="timer-workspace" hidden>
             <div class="workspace-heading">
               <div>
@@ -76,9 +72,8 @@
                 <h1 id="timer-heading">Deep study</h1>
                 <p id="timer-subtitle">25 min focus · 5 min break</p>
               </div>
-              <button id="edit-active-timer" class="button button-quiet" type="button"><span aria-hidden="true">✎</span> <span data-i18n="timer.edit">Edit</span></button>
+              <button id="edit-active-timer" class="button button-quiet" type="button"><span aria-hidden="true">✏️</span> <span data-i18n="timer.edit">Edit</span></button>
             </div>
-
             <article class="focus-panel">
               <div class="phase-header">
                 <div>
@@ -87,21 +82,18 @@
                 </div>
                 <span id="timer-state" class="state-pill">LISTO</span>
               </div>
-
               <div id="progress-ring" class="progress-ring" role="img" data-i18n-attr="aria-label:timer.remainingAria" aria-label="Time remaining">
                 <div class="progress-core">
                   <strong id="time-display">25:00</strong>
                   <span id="time-caption">minutes available</span>
                 </div>
               </div>
-
               <div class="session-details">
                 <div><span>Focus</span><strong id="focus-duration">25 min</strong></div>
                 <div><span>Break</span><strong id="break-duration">5 min</strong></div>
               </div>
-
               <div class="timer-controls">
-                <button id="start-button" class="button button-primary button-large" type="button">Iniciar Focus <span aria-hidden="true">→</span></button>
+                <button id="start-button" class="button button-primary button-large" type="button">Iniciar Focus <span aria-hidden="true">▶</span></button>
                 <button id="pause-button" class="button button-secondary button-large" type="button" hidden>Pausar</button>
                 <button id="finish-button" class="button button-finish button-large" type="button" data-i18n="timer.finish" hidden>Finish</button>
                 <button id="skip-break-button" class="button button-secondary button-large" type="button" data-i18n="timer.skipBreak" hidden>Skip break</button>
@@ -110,10 +102,9 @@
             </article>
           </div>
         </section>
-
         <section id="stats-view" class="workspace view" aria-labelledby="stats-heading" hidden>
           <div id="stats-empty" class="empty-state" hidden>
-            <span class="empty-icon" aria-hidden="true">⌁</span>
+            <span class="empty-icon" aria-hidden="true">📊</span>
             <h1 data-i18n="stats.noneTitle">No timer selected.</h1>
             <p data-i18n="stats.noneCopy">Select or create a timer to view its statistics.</p>
           </div>
@@ -143,21 +134,19 @@
                 </div>
               </div>
             </div>
-
             <div id="stats-data-view">
               <div class="stats-grid">
-                <button id="day-breakdown" class="metric-card metric-card-highlight metric-button" type="button"><span data-i18n="stats.today">TODAY</span><strong id="stat-day"></strong><small><span data-i18n="stats.completed">Focus completed</span> <b data-i18n="stats.viewDetail">View details →</b></small></button>
-                <button id="yesterday-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.yesterday">YESTERDAY</span><strong id="stat-yesterday"></strong><small><span data-i18n="stats.completed">Focus completed</span> <b data-i18n="stats.viewDetail">View details →</b></small></button>
-                <button id="week-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.week">WEEK</span><strong id="stat-week"></strong><small><span data-i18n="stats.last7">Last 7 days</span> <b data-i18n="stats.viewDetail">View details →</b></small></button>
-                <button id="month-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.month">MONTH</span><strong id="stat-month"></strong><small><span data-i18n="stats.currentMonth">Current month</span> <b data-i18n="stats.viewDetail">View details →</b></small></button>
-                <button id="total-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.total">TOTAL</span><strong id="stat-total"></strong><small><span data-i18n="stats.sinceCreation">Since creation</span> <b data-i18n="stats.viewYear">View by year →</b></small></button>
+                <button id="day-breakdown" class="metric-card metric-card-highlight metric-button" type="button"><span data-i18n="stats.today">TODAY</span><strong id="stat-day"></strong><small><span data-i18n="stats.completed">Focus completed</span> <b data-i18n="stats.viewDetail">View details ➔ </b></small></button>
+                <button id="yesterday-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.yesterday">YESTERDAY</span><strong id="stat-yesterday"></strong><small><span data-i18n="stats.completed">Focus completed</span> <b data-i18n="stats.viewDetail">View details ➔ </b></small></button>
+                <button id="week-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.week">WEEK</span><strong id="stat-week"></strong><small><span data-i18n="stats.last7">Last 7 days</span> <b data-i18n="stats.viewDetail">View details ➔ </b></small></button>
+                <button id="month-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.month">MONTH</span><strong id="stat-month"></strong><small><span data-i18n="stats.currentMonth">Current month</span> <b data-i18n="stats.viewDetail">View details ➔ </b></small></button>
+                <button id="total-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.total">TOTAL</span><strong id="stat-total"></strong><small><span data-i18n="stats.sinceCreation">Since creation</span> <b data-i18n="stats.viewYear">View by year ➔ </b></small></button>
               </div>
               <section class="recent-sessions" aria-labelledby="recent-heading">
                 <div class="section-title"><h2 id="recent-heading" data-i18n="stats.recent">Recent sessions</h2><span id="recent-summary">0 sesiones</span></div>
                 <div id="recent-list" class="recent-list"></div>
               </section>
             </div>
-
             <div id="stats-charts-view" class="stats-charts" hidden>
               <section class="chart-card">
                 <div class="chart-toolbar">
@@ -184,7 +173,6 @@
             </div>
           </div>
         </section>
-
         <section id="aquarium-view" class="workspace view" aria-labelledby="pet-name" hidden>
           <div class="workspace-heading">
             <div>
@@ -193,20 +181,17 @@
               <p id="pet-progress-text">0 / 1 h alimentadas</p>
             </div>
           </div>
-
           <div id="tank" class="tank">
             <span class="bubble"></span><span class="bubble"></span><span class="bubble"></span><span class="bubble"></span><span class="bubble"></span>
             <div id="shark" class="shark"><div id="shark-flip" class="shark-flip"></div></div>
             <div class="sand"></div>
             <span id="egg-count" class="egg-count" hidden></span>
           </div>
-
           <div class="pet-progress"><div id="pet-bar" class="pet-bar"></div></div>
-
           <div class="meat-panel">
             <div>
               <p class="eyebrow" data-i18n="pet.pantry">PANTRY</p>
-              <strong id="meat-count" class="meat-count">0 chunks 🥩</strong>
+              <strong id="meat-count" class="meat-count">0 chunks 🍖</strong>
               <small id="meat-hint">Cada hora neta de Focus da 1 trozo.</small>
             </div>
             <div class="meat-actions">
@@ -214,16 +199,14 @@
               <button id="feed-all" class="button button-primary" type="button" data-i18n="pet.feedAll">Throw all</button>
             </div>
           </div>
-
           <p class="eyebrow levels-title" data-i18n="pet.requirements">EVOLUTION REQUIREMENTS</p>
           <div id="pet-levels" class="pet-levels-simple"></div>
         </section>
       </main>
     </div>
-
     <dialog id="timer-modal" class="modal">
       <form id="timer-form" class="modal-card" method="dialog">
-        <div class="modal-heading"><div><p id="editor-eyebrow" class="eyebrow">NEW TIMER</p><h2 id="editor-title">Create a space</h2></div><button class="modal-close" type="button" data-close="timer-modal" data-i18n-attr="aria-label:common.close" aria-label="Close">×</button></div>
+        <div class="modal-heading"><div><p id="editor-eyebrow" class="eyebrow">NEW TIMER</p><h2 id="editor-title">Create a space</h2></div><button class="modal-close" type="button" data-close="timer-modal" data-i18n-attr="aria-label:common.close" aria-label="Close">✕</button></div>
         <label for="timer-name" data-i18n="editor.name">Name</label>
         <input id="timer-name" name="name" type="text" maxlength="48" data-i18n-attr="placeholder:editor.namePh" placeholder="E.g. Deep study" required />
         <div class="field-grid">
@@ -239,10 +222,9 @@
         <div class="modal-actions"><button id="delete-timer" class="button button-danger" type="button" data-i18n="editor.delete" hidden>Delete</button><span></span><button class="button button-secondary" type="button" data-close="timer-modal" data-i18n="editor.cancel">Cancel</button><button id="save-timer" class="button button-primary" type="submit" data-i18n="editor.save">Save</button></div>
       </form>
     </dialog>
-
     <dialog id="settings-modal" class="modal">
       <section class="modal-card settings-card" aria-labelledby="settings-title">
-        <div class="modal-heading"><div><p class="eyebrow" data-i18n="settings.eyebrow">PREFERENCES</p><h2 id="settings-title" data-i18n="settings.title">Settings</h2></div><button class="modal-close" type="button" data-close="settings-modal" data-i18n-attr="aria-label:common.close" aria-label="Close">×</button></div>
+        <div class="modal-heading"><div><p class="eyebrow" data-i18n="settings.eyebrow">PREFERENCES</p><h2 id="settings-title" data-i18n="settings.title">Settings</h2></div><button class="modal-close" type="button" data-close="settings-modal" data-i18n-attr="aria-label:common.close" aria-label="Close">✕</button></div>
         <div class="setting-row"><div><strong data-i18n="settings.language">Language</strong><span data-i18n="settings.languageDesc">Choose the app language.</span></div><select id="language-select" class="language-select" data-i18n-attr="aria-label:settings.language" aria-label="Language"><option value="en">English</option><option value="es">Español</option></select></div>
         <div class="setting-row"><div><strong data-i18n="settings.dark">Dark mode</strong><span data-i18n="settings.darkDesc">Use the dark navy style.</span></div><label class="switch"><input id="dark-mode-toggle" type="checkbox" /><span></span></label></div>
         <div class="setting-row volume-row"><div><strong data-i18n="settings.volume">Alarm volume</strong><span id="volume-label">70%</span></div><input id="volume-slider" type="range" min="0" max="100" value="70" data-i18n-attr="aria-label:settings.volume" aria-label="Alarm volume" /></div>
@@ -250,14 +232,12 @@
         <button id="logout-button" class="logout-link" type="button" data-i18n="settings.logout">Sign out of Google</button>
       </section>
     </dialog>
-
     <dialog id="breakdown-modal" class="modal">
       <section class="modal-card breakdown-card" aria-labelledby="breakdown-title">
-        <div class="modal-heading"><div><p id="breakdown-eyebrow" class="eyebrow">BREAKDOWN</p><h2 id="breakdown-title">Statistics</h2></div><button class="modal-close" type="button" data-close="breakdown-modal" data-i18n-attr="aria-label:common.close" aria-label="Close">×</button></div>
+        <div class="modal-heading"><div><p id="breakdown-eyebrow" class="eyebrow">BREAKDOWN</p><h2 id="breakdown-title">Statistics</h2></div><button class="modal-close" type="button" data-close="breakdown-modal" data-i18n-attr="aria-label:common.close" aria-label="Close">✕</button></div>
         <div id="breakdown-list" class="breakdown-list"></div>
       </section>
     </dialog>
-
     <!-- Level-up modal -->
     <dialog id="levelup-modal" class="modal">
       <section class="modal-card levelup-card">
@@ -270,23 +250,21 @@
         <button class="button button-primary button-large modal-close" type="button" data-close="levelup-modal" style="width: 100%;" data-i18n="level.great">Great!</button>
       </section>
     </dialog>
-
     <section id="game-view" class="game-view" hidden aria-label="Underwater world">
       <canvas id="game-canvas"></canvas>
       <div class="game-hud">
         <strong id="gh-lvl"></strong><strong id="gh-bp" class="gh-bp"></strong>
-        <div class="gbar gbar-hp" title="❤️"><i id="gh-hp"></i></div><div class="gbar gbar-en" title="🍖"><i id="gh-en"></i></div>
+        <div class="gbar gbar-hp" title="HP"><i id="gh-hp"></i></div><div class="gbar gbar-en" title="Energy"><i id="gh-en"></i></div>
         <span id="gh-zone"></span>
       </div>
-      <button id="game-back" class="game-back" type="button">← BACK</button>
+      <button id="game-back" class="game-back" type="button">⬅ BACK</button>
       <div id="game-banner" class="game-banner" role="status" aria-live="polite"></div>
       <div id="game-joy" class="game-joy" aria-hidden="true"></div>
-      <button id="game-bite" class="game-bite" type="button" aria-label="Bite">🦈</button>
+      <button id="game-bite" class="game-bite" type="button" aria-label="Bite">🦷</button>
     </section>
-
-    <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-icon" aria-hidden="true">✓</span><p id="toast-message"></p><button id="toast-close" type="button" data-i18n-attr="aria-label:toast.close" aria-label="Close notice">×</button></div>
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-icon" aria-hidden="true">✓</span><p id="toast-message"></p><button id="toast-close" type="button" data-i18n-attr="aria-label:toast.close" aria-label="Close notice">✕</button></div>
+    <!-- Referencia local de Chart.js para funcionamiento Offline -->
+    <script src="./libs/chart.umd.min.js"></script>
     <script type="module" src="app.js"></script>
   </body>
 </html>

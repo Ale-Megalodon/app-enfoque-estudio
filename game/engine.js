@@ -1,4 +1,4 @@
-/* Motor del minijuego (Beta 3.2) - Soporte Pixel Art, Playa de Superficie y Panel de Dieta */
+/* Motor del minijuego (Beta 4.0) - Pixel Perfect, Spritesheets, Mundo Híbrido, Dash y Overlay de Dieta */
 import { BP, WORLD, LEVELS, SHARK_COLORS, ZONES, GATES, POIS, TREASURES, TREASURE_PER_ZONE, CREATURES, TEXT, SAVE_VERSION } from "./data.js";
 import { createInput, createAudio, spawn, updateCreature } from "./systems.js";
 
@@ -6,10 +6,16 @@ const rng = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a
 const TREASURE_ICON = { coin: "🪙", gem: "💎", chest: "🏴‍☠️", relic: "🔱" };
 const ALL_GATES = [...GATES];
 
-// ESQUELETO PIXEL ART (AssetManager 2.0)
+// GESTOR DE RECURSOS 2.0 (Soporte para Spritesheets y Animación Frame-by-Frame)
 const AssetManager = {
   images: {},
-  urls: {}, // Aquí pondrás: { 'crab_small': 'assets/crab.png' }
+  urls: {
+    // AQUÍ REGISTRARÁS TUS IMÁGENES PIXEL ART EN EL FUTURO.
+    // Ejemplos:
+    // 'player_swim_lvl0': 'assets/huevito_swim.png',
+    // 'player_bite_lvl1': 'assets/cria_bite.png',
+    // 'crab_small': 'assets/crab.png'
+  },
   init() {
     Object.keys(this.urls).forEach(key => {
       const img = new Image();
@@ -17,16 +23,35 @@ const AssetManager = {
       img.onload = () => { this.images[key] = img; };
     });
   },
-  drawSprite(ctx, id, x, y, width, height, time) {
-    if (this.images[id]) {
-      // Futuro soporte para hojas de sprites: const frame = Math.floor(time * 10) % framesTotales;
-      ctx.drawImage(this.images[id], x - width/2, y - height/2, width, height);
+  // time: tiempo del motor, frames: columnas de la imagen, speed: velocidad de reproducción
+  drawSprite(ctx, id, x, y, width, height, time, frames = 1, speed = 8) {
+    const img = this.images[id];
+    if (img) {
+      const currentFrame = Math.floor(time * speed) % frames;
+      const frameWidth = img.width / frames;
+      ctx.drawImage(
+        img,
+        currentFrame * frameWidth, 0, // X, Y original del recorte
+        frameWidth, img.height,       // Ancho y Alto original del recorte
+        x - width / 2, y - height / 2,// X, Y destino en Canvas
+        width, height                 // Ancho y Alto destino
+      );
       return true; 
     }
-    return false; // Activa el fallback geométrico si no hay PNG
+    return false; // Devuelve false para usar el Fallback Geométrico
   }
 };
 
+const PetPaths = {
+  tail: new Path2D("M40 55 L4 18 Q20 55 4 92 Z"),
+  body: new Path2D("M30 55 Q80 8 150 30 Q200 45 214 58 Q190 84 140 88 Q70 98 30 55Z"),
+  belly: new Path2D("M60 78 Q120 94 196 66 Q150 88 100 88Z"),
+  finTop: new Path2D("M95 30 L116 0 L136 32Z"),
+  finBottom: new Path2D("M120 82 L98 106 L146 86Z"),
+  gills: new Path2D("M140 56 q4 8 0 16 M148 55 q4 8 0 16")
+};
+
+// Módulo de Fallback Visual (Se dibuja si no hay PNG en AssetManager)
 const Graphics = {
   drawFish(ctx, s, time, c1, c2) {
     const wag = Math.sin(time * 12) * (s * 0.15);
@@ -34,6 +59,11 @@ const Graphics = {
     ctx.fillStyle = c1; ctx.beginPath(); ctx.ellipse(0, 0, s*0.5, s*0.25, 0, 0, 6.3); ctx.fill();
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(s*0.25, -s*0.08, s*0.06, 0, 6.3); ctx.fill();
     ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(s*0.27, -s*0.08, s*0.03, 0, 6.3); ctx.fill();
+  },
+  drawRay(ctx, s, time) {
+    const flap = Math.sin(time * 5) * s * 0.3;
+    ctx.fillStyle = "#5c6bc0"; ctx.beginPath(); ctx.moveTo(s*0.4, 0); ctx.lineTo(0, -s*0.4 + flap); ctx.lineTo(-s*0.3, 0); ctx.lineTo(0, s*0.4 - flap); ctx.fill();
+    ctx.strokeStyle = "#3f51b5"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-s*0.3, 0); ctx.lineTo(-s*0.8 + Math.sin(time*8)*s*0.1, Math.sin(time*6)*s*0.1); ctx.stroke();
   },
   drawEel(ctx, s, time, isHostile) {
     ctx.strokeStyle = isHostile ? "#2e7d32" : "#d4e157"; ctx.lineWidth = s * 0.2; ctx.lineCap = "round"; ctx.lineJoin = "round";
@@ -49,7 +79,15 @@ const Graphics = {
     [-1, 1].forEach(dir => {
       ctx.beginPath(); ctx.moveTo(dir*s*0.2, 0); ctx.lineTo(dir*s*0.4, -s*0.2 + leg*dir); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(dir*s*0.2, s*0.1); ctx.lineTo(dir*s*0.4, s*0.3 - leg*dir); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(dir*s*0.25, -s*0.1); ctx.lineTo(dir*s*0.45, -s*0.3); ctx.arc(dir*s*0.45, -s*0.3, s*0.08, 0, Math.PI); ctx.fill();
     });
+  },
+  drawGolem(ctx, s, time) {
+    const hover = Math.sin(time * 2) * 5;
+    ctx.fillStyle = "#37474f"; ctx.fillRect(-s*0.3, -s*0.4 + hover, s*0.6, s*0.8);
+    ctx.fillStyle = "#00e5ff"; ctx.globalAlpha = 0.6 + Math.sin(time*8)*0.4;
+    ctx.fillRect(-s*0.1, -s*0.2 + hover, s*0.2, s*0.4); ctx.globalAlpha = 1;
+    ctx.fillStyle = "#263238"; ctx.fillRect(-s*0.4, -s*0.3 + hover, s*0.1, s*0.6); ctx.fillRect(s*0.3, -s*0.3 + hover, s*0.1, s*0.6);
   }
 };
 
@@ -74,7 +112,7 @@ export function createGame(o) {
   
   let S, p, input, audio, raf = 0, last = 0, running = false, vw = 0, vh = 0, time = 0, saveT = 0, darkV = 0, bannerT = 0, lastBanner = "", gateCd = 0;
   let camScale = 1; 
-  let showDietOverlay = true; // Control de Interfaz de Dieta
+  let showDietOverlay = true;
 
   const fx = [], ft = [], txt = () => TEXT[o.lang()] || TEXT.en, fmt = (n) => Math.round(n).toLocaleString(o.lang() === "es" ? "es-BO" : "en-US");
   const save = () => { clearTimeout(saveT); saveT = setTimeout(() => o.save({ v: SAVE_VERSION, bpLevel: S.bpLevel, bp: S.bp, found: S.found, zones: S.zones }), 1200); };
@@ -96,7 +134,7 @@ export function createGame(o) {
         S.bpLevel = lv; S.bp = 0; 
         say(`¡${txt().lvl} ${lv + 1} - ${o.name(lv)}!`, "good"); 
         burst(p.x, p.y, "#fff", 25); save(); 
-        showDietOverlay = true; // Volver a mostrar overlay al subir nivel
+        showDietOverlay = true;
     }
   }
 
@@ -115,9 +153,10 @@ export function createGame(o) {
 
     const st = LEVELS[S.lvl], r = st.size * 0.5, d = input.dir();
     
-    // Ocultar Overlay de Dieta automáticamente al moverse
+    // Ocultar Overlay de Dieta al interactuar
     if (showDietOverlay && (d.x !== 0 || d.y !== 0 || input.takeBite())) showDietOverlay = false;
 
+    // Multiplicador del huevo x8 para mejor arranque
     const a = Math.min(1, dt * (S.lvl === 0 ? 8 : 4));
     const isDashing = input.dash && input.dash() && p.energy > 0;
     const speedMult = isDashing ? 1.8 : 1;
@@ -136,7 +175,7 @@ export function createGame(o) {
     }
     gateCd -= dt; 
     p.x = Math.min(WORLD.w - r, Math.max(r, p.x)); 
-    p.y = Math.min(WORLD.h - r, Math.max(20, p.y)); // Superficie Y=20, tiburón no puede volar
+    p.y = Math.min(WORLD.h - r, Math.max(20, p.y)); // Superficie dura Y=20
     
     const spd = Math.hypot(p.vx, p.vy);
     if (spd > 8) { 
@@ -203,12 +242,10 @@ export function createGame(o) {
     hud.hp.style.width = `${Math.max(0, (p.hp / st.hp) * 100)}%`; hud.en.style.width = `${p.energy}%`; back.textContent = txt().back;
   }
 
-  // INTERFAZ DE DIETA (Overlay)
   function drawDietOverlay(ctx, power) {
     if (!showDietOverlay) return;
     const menuWidth = Math.min(300, vw * 0.8);
     const edible = CREATURES.filter(c => c.r <= power).map(c => c.name[o.lang() === "es" ? 1 : 0]);
-    // Eliminar duplicados si hay múltiples criaturas con el mismo nombre
     const uniqueEdible = [...new Set(edible)];
     
     ctx.save();
@@ -230,27 +267,54 @@ export function createGame(o) {
     ctx.restore();
   }
 
+  // Exact fallback rendering for player
+  function exactEgg(s, time) {
+    const scale = (s * 2.2) / 100;
+    ctx.save(); ctx.scale(scale, scale); ctx.translate(-50, -65);
+    ctx.translate(50, 130); ctx.rotate(Math.sin(time * 6) * 0.08); ctx.translate(-50, -130);
+    ctx.fillStyle = "#f5e6c8"; ctx.beginPath(); ctx.ellipse(50, 70, 38, 52, 0, 0, 6.3); ctx.fill();
+    ctx.fillStyle = "#e2c99a";
+    ctx.beginPath(); ctx.arc(36, 55, 6, 0, 6.3); ctx.fill(); ctx.beginPath(); ctx.arc(62, 82, 8, 0, 6.3); ctx.fill(); ctx.beginPath(); ctx.arc(58, 44, 4, 0, 6.3); ctx.fill();
+    ctx.restore();
+  }
+
+  function exactShark(L, col, wag, mouth) {
+    const scale = (L * 2.8) / 220; 
+    ctx.save(); ctx.scale(scale, scale); ctx.translate(-110, -55);
+    ctx.save(); ctx.translate(40, 55); ctx.rotate(wag * 0.05); ctx.translate(-40, -55);
+    ctx.fillStyle = col; ctx.fill(PetPaths.tail); ctx.restore();
+    ctx.fillStyle = col; ctx.fill(PetPaths.body);
+    ctx.fillStyle = "#eaf6ff"; ctx.fill(PetPaths.belly);
+    ctx.fillStyle = col; ctx.fill(PetPaths.finTop);
+    ctx.fillStyle = col; ctx.globalAlpha = 0.8; ctx.fill(PetPaths.finBottom); ctx.globalAlpha = 1;
+    ctx.strokeStyle = "rgba(11, 27, 51, 0.25)"; ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.stroke(PetPaths.gills);
+    ctx.fillStyle = "#0b1b33"; ctx.beginPath(); ctx.arc(180, 52, 4.5, 0, 6.3); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(181.5, 50.5, 1.4, 0, 6.3); ctx.fill();
+    if (mouth > 0) {
+       ctx.fillStyle = "#5a0f1a";
+       ctx.beginPath(); ctx.moveTo(214, 58); ctx.lineTo(190 + mouth*12, 58 + mouth*18); ctx.lineTo(180, 80); ctx.fill();
+       ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(214, 58); ctx.lineTo(204, 66); ctx.lineTo(200, 58); ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function draw() {
     const st = LEVELS[S.lvl], sh = p.shake ? (Math.random() - 0.5) * 12 : 0, H = WORLD.h;
     const vwp = vw / camScale, vhp = vh / camScale;
     const cx = Math.min(WORLD.w - vwp, Math.max(0, p.x - vwp / 2)) + sh;
     const cy = Math.min(H - vhp, Math.max(0, p.y - vhp / 2));
 
-    // PIXEL PERFECT (Desactiva el suavizado nativo del canvas)
+    // MODO PIXEL PERFECT
     ctx.imageSmoothingEnabled = false;
 
     ctx.save(); ctx.clearRect(0, 0, vw, vh); ctx.scale(camScale, camScale); 
 
-    // RENDERIZADO DEL CIELO Y PLAYA (Si la cámara ve la superficie Y=0)
+    // SUPERFICIE EXTERIOR (Cielo y Playa)
     if (cy < 0) {
-      // Cielo
       const sky = ctx.createLinearGradient(0, -cy, 0, 0);
       sky.addColorStop(0, "#ffcf87"); sky.addColorStop(1, "#87ceeb");
-      ctx.fillStyle = sky; ctx.fillRect(0, -cy, vwp, -cy * 2); // Dibujado hacia "arriba"
-      
-      // Playa (Arena al fondo en X)
-      ctx.fillStyle = "#e3ce98";
-      ctx.beginPath(); ctx.moveTo(0, 0);
+      ctx.fillStyle = sky; ctx.fillRect(0, -cy, vwp, -cy * 2);
+      ctx.fillStyle = "#e3ce98"; ctx.beginPath(); ctx.moveTo(0, 0);
       for(let x=0; x<=vwp; x+=50) ctx.lineTo(x, -20 + Math.sin(x*0.01 + cx*0.01)*15);
       ctx.lineTo(vwp, 0); ctx.fill();
     }
@@ -262,7 +326,7 @@ export function createGame(o) {
       ctx.fillStyle = g; ctx.fillRect(z.x - cx, Math.max(0, z.y - cy), z.w + 1, z.h + 1);
     });
     
-    // Superficie del agua (Olas)
+    // Olas de superficie
     if (cy < 100) {
       ctx.fillStyle = "rgba(255,255,255,0.15)";
       ctx.beginPath(); ctx.moveTo(0, -cy);
@@ -280,10 +344,12 @@ export function createGame(o) {
       const flip = Math.cos(c.a) > 0 ? -1 : 1;
       ctx.rotate(Math.sin(c.a) * 0.4 * -flip); ctx.scale(flip, 1); ctx.globalAlpha = c.hit > 0 ? 0.5 : 1;
       
-      // AssetManager Dibuja el Sprite. Si no existe la imagen, usa fallback geométrico.
-      if (!AssetManager.drawSprite(ctx, df.id, 0, 0, df.s * 2, df.s * 2, time)) {
-         if (df.id.includes("eel") || df.id.includes("snake")) Graphics.drawEel(ctx, df.s, time, df.dm);
+      // Dibujado del Mob (Intenta Sprite, si no, usa Vectorial)
+      if (!AssetManager.drawSprite(ctx, df.id, 0, 0, df.s * 2, df.s * 2, time, 4, 8)) {
+         if (df.id.includes("ray")) Graphics.drawRay(ctx, df.s, time);
+         else if (df.id.includes("eel") || df.id.includes("snake")) Graphics.drawEel(ctx, df.s, time, df.dm);
          else if (df.id.includes("crab")) Graphics.drawCrab(ctx, df.s, time);
+         else if (df.id.includes("golem") || df.id.includes("construct")) Graphics.drawGolem(ctx, df.s, time);
          else Graphics.drawFish(ctx, df.s, time, df.dm ? "#d32f2f" : "#29b6f6", df.dm ? "#b71c1c" : "#0288d1");
       }
       ctx.restore();
@@ -292,9 +358,14 @@ export function createGame(o) {
     // Jugador
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); if (Math.cos(p.a) < 0) ctx.scale(1, -1); 
     ctx.globalAlpha = p.inv > 0 && Math.floor(time * 12) % 2 ? 0.4 : 1;
-    if (!AssetManager.drawSprite(ctx, `player_lvl${S.lvl}`, 0, 0, st.size * 3, st.size * 1.5, time)) {
-        ctx.fillStyle = SHARK_COLORS[S.lvl];
-        ctx.beginPath(); ctx.ellipse(0, 0, st.size, st.size*0.5, 0, 0, 6.3); ctx.fill(); // Vector simplificado
+    
+    const isBiting = p.biteT > 0;
+    const spriteId = isBiting ? `player_bite_lvl${S.lvl}` : `player_swim_lvl${S.lvl}`;
+    const frameCount = isBiting ? 2 : 4; 
+    
+    if (!AssetManager.drawSprite(ctx, spriteId, 0, 0, st.size * 3, st.size * 1.5, time, frameCount, 10)) {
+        if (S.lvl === 0) exactEgg(st.size, time); 
+        else exactShark(st.size, SHARK_COLORS[S.lvl], Math.sin(time * 9) * st.size, Math.max(0, p.biteT / 0.3));
     }
     ctx.restore();
 
@@ -310,9 +381,8 @@ export function createGame(o) {
       const px = p.x - cx, py = p.y - cy, g = ctx.createRadialGradient(px, py, 120 / camScale, px, py, 650 / camScale); 
       g.addColorStop(0, "rgba(0,0,10,0)"); g.addColorStop(1, `rgba(0,0,10,${darkV})`); ctx.fillStyle = g; ctx.fillRect(0, 0, vwp, vhp); 
     }
-    ctx.restore(); // Fin cámara
+    ctx.restore(); 
     
-    // Dibuja el Overlay de Dieta por encima de todo
     drawDietOverlay(ctx, st.power);
   }
 

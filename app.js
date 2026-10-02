@@ -1,50 +1,13 @@
 /* ==========================================================================
-   APP DE ESTUDIO – TEMPORIZADORES POMODORO CON FIREBASE + MASCOTA TIBURÓN
-   Índice:
-   1. Imports de Firebase
-   2. Configuración y constantes
-   3. Referencias al DOM
-   4. Estado global
-   5. Utilidades (datos, formato, tiempo)
-   6. Sonido y notificaciones
-   7. Actualizaciones optimistas
-   8. Render (temporizadores, workspace, estadísticas, gráficos)
-   9. Modal de desglose
-   10. Navegación, toast y modales
-   11. CRUD de temporizadores
-   12. Acciones del temporizador (iniciar, pausar, terminar, expirar)
-   13. Ticker
-   14. Ajustes (tema, volumen, notificaciones)
-   14b. Mascota: tiburón
-   15. Firestore listeners
-   16. Eventos de interfaz
-   17. Autenticación e inicialización
+   APP DE ESTUDIO - FOCUS CLOUD (Versión Offline-First / App Store Ready)
    ========================================================================== */
 
-/* ==========================================================================
-   1. IMPORTS DE FIREBASE
-   ========================================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
-import {
-  GoogleAuthProvider,
-  getAuth,
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import {   GoogleAuthProvider,   getAuth,   onAuthStateChanged,   signInWithPopup,   signOut } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import { createGame } from "./game/engine.js";
 import { attachMultiClick } from "./game/easter-egg.js";
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getFirestore,
-  increment,
-  onSnapshot,
-  runTransaction,
-  setDoc,
-  updateDoc
-} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import {   collection,   deleteDoc,   doc,   getFirestore,   enableIndexedDbPersistence,
+   increment,   onSnapshot,   runTransaction,   setDoc,   updateDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
 /* ==========================================================================
    2. CONFIGURACIÓN Y CONSTANTES
@@ -61,8 +24,17 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
-const googleProvider = new GoogleAuthProvider();
 
+// Habilitar persistencia offline para almacenamiento local de datos (Modo App Nativa / Sin Conexión)
+enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code == 'failed-precondition') {
+        console.warn("Persistencia falló: Múltiples pestañas abiertas simultáneamente.");
+    } else if (err.code == 'unimplemented') {
+        console.warn("El entorno actual no soporta persistencia offline.");
+    }
+});
+
+const googleProvider = new GoogleAuthProvider();
 const LANGUAGES = {
   en: { label: "English", locale: "en-US" },
   es: { label: "Español", locale: "es-BO" }
@@ -78,12 +50,12 @@ const DAY_MS = 86_400_000;
 const TAG_COLORS = ["#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#f97316", "#6366f1"];
 const MAX_TAGS = 3;
 const MAX_TAG_LENGTH = 16;
-const BREAK_MIN_STUDY_MINUTES = 5;   // solo se ofrece descanso si el estudio fue MAYOR a esto
+const BREAK_MIN_STUDY_MINUTES = 5;
 
-/* ---- Traducciones (idiomas disponibles: en, es) ---- */
+/* ---- Traducciones ---- */
 const I18N = {
   en: {
-    "meta.description": "Focus timers synced with your Google account.",
+    "meta.description": "Focus timers synced with your account.",
     "auth.title": "Study from<br />anywhere.",
     "auth.copy": "Your timers and statistics sync privately with your account.",
     "auth.google": "Continue with Google",
@@ -130,20 +102,20 @@ const I18N = {
     "timer.captionFocus": "minutes available",
     "timer.captionBreak": "of break (not recorded)",
     "timer.captionRunning": "time remaining",
-    "timer.startFocus": "Start Focus →",
-    "timer.startBreak": "Start break →",
+    "timer.startFocus": "Start Focus",
+    "timer.startBreak": "Start break",
     "timer.pause": "Pause",
     "timer.resume": "Resume",
     "timer.finish": "Finish",
     "timer.skipBreak": "Skip break",
     "timer.msgPaused": "The countdown is frozen and synced.",
     "timer.msgRunning": "The session will continue even if you switch devices.",
-    "timer.msgIdle": "Progress is saved to the cloud when you start, pause or finish.",
+    "timer.msgIdle": "Progress is saved locally when you start, pause or finish.",
     "sync.synced": "Synced",
-    "sync.syncing": "Syncing…",
-    "sync.saving": "Saving…",
-    "sync.deleting": "Deleting…",
-    "sync.recording": "Recording…",
+    "sync.syncing": "Syncing",
+    "sync.saving": "Saving",
+    "sync.deleting": "Deleting",
+    "sync.recording": "Recording",
     "stats.noneTitle": "No timer selected.",
     "stats.noneCopy": "Select or create a timer to view its statistics.",
     "stats.syncTitle": "Sync",
@@ -163,8 +135,8 @@ const I18N = {
     "stats.last7": "Last 7 days",
     "stats.currentMonth": "Current month",
     "stats.sinceCreation": "Since creation",
-    "stats.viewDetail": "View details →",
-    "stats.viewYear": "View by year →",
+    "stats.viewDetail": "View details ➔",
+    "stats.viewYear": "View by year ➔",
     "stats.recent": "Recent sessions",
     "stats.totalRecorded": "{time} recorded",
     "stats.sessionOne": "session",
@@ -206,7 +178,7 @@ const I18N = {
     "breakdown.historyEyebrow": "HISTORY",
     "breakdown.chooseYear": "Choose a year",
     "breakdown.yearEyebrow": "YEAR",
-    "breakdown.backYears": "← Years",
+    "breakdown.backYears": "⬅ Years",
     "breakdown.yearTotal": "Year total",
     "cal.days": ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
     "pet.pantry": "PANTRY",
@@ -219,12 +191,12 @@ const I18N = {
     "pet.meatOne": "chunk",
     "pet.meatMany": "chunks",
     "pet.hint": "Next chunk in ~{m} min of Focus.",
-    "pet.levelRow": "Level {n} · {name}",
+    "pet.levelRow": "Level {n} — {name}",
     "pet.noMeat": "You have no meat yet. Every net hour of Focus gives 1 chunk.",
     "pet.feedError": "Could not feed the shark.",
-    "level.unlocked": "EVOLUTION UNLOCKED!",
-    "level.hatched": "Your egg hatched!",
-    "level.up": "You leveled up!",
+    "level.unlocked": "🎉 EVOLUTION UNLOCKED!",
+    "level.hatched": "🐣 Your egg hatched!",
+    "level.up": "⭐ You leveled up!",
     "level.desc": "Level {n} of {total}: {name}",
     "level.great": "Great!",
     "editor.new": "NEW TIMER",
@@ -248,7 +220,7 @@ const I18N = {
     "editor.save": "Save",
     "editor.saveError": "Could not save the information.",
     "editor.busyDelete": "Finish the active session before deleting the timer.",
-    "editor.confirmDelete": "Delete “{title}” and its statistics?",
+    "editor.confirmDelete": "Delete „{title}“ and its statistics?",
     "editor.deleteError": "Could not delete the timer.",
     "toast.updated": "Timer updated.",
     "toast.created": "Timer created.",
@@ -283,7 +255,7 @@ const I18N = {
     "settings.notifEnabledToast": "Browser notifications enabled."
   },
   es: {
-    "meta.description": "Temporizadores de enfoque sincronizados con tu cuenta de Google.",
+    "meta.description": "Temporizadores de enfoque sincronizados con tu cuenta.",
     "auth.title": "Estudia desde<br />cualquier lugar.",
     "auth.copy": "Tus temporizadores y estadísticas se sincronizan de forma privada con tu cuenta.",
     "auth.google": "Continuar con Google",
@@ -330,20 +302,20 @@ const I18N = {
     "timer.captionFocus": "minutos disponibles",
     "timer.captionBreak": "de descanso (no se registra)",
     "timer.captionRunning": "tiempo restante",
-    "timer.startFocus": "Iniciar Focus →",
-    "timer.startBreak": "Iniciar descanso →",
+    "timer.startFocus": "Iniciar Focus",
+    "timer.startBreak": "Iniciar descanso",
     "timer.pause": "Pausar",
     "timer.resume": "Reanudar",
     "timer.finish": "Terminar",
     "timer.skipBreak": "Saltar descanso",
     "timer.msgPaused": "La cuenta está congelada y sincronizada.",
     "timer.msgRunning": "La sesión continuará aunque cambies de dispositivo.",
-    "timer.msgIdle": "El avance se guarda en la nube al iniciar, pausar o terminar.",
+    "timer.msgIdle": "El avance se guarda localmente al iniciar, pausar o terminar.",
     "sync.synced": "Sincronizado",
-    "sync.syncing": "Sincronizando…",
-    "sync.saving": "Guardando…",
-    "sync.deleting": "Eliminando…",
-    "sync.recording": "Registrando…",
+    "sync.syncing": "Sincronizando",
+    "sync.saving": "Guardando",
+    "sync.deleting": "Eliminando",
+    "sync.recording": "Registrando",
     "stats.noneTitle": "Sin temporizador seleccionado.",
     "stats.noneCopy": "Selecciona o crea un temporizador para consultar sus estadísticas.",
     "stats.syncTitle": "Sincronización",
@@ -363,8 +335,8 @@ const I18N = {
     "stats.last7": "Últimos 7 días",
     "stats.currentMonth": "Mes actual",
     "stats.sinceCreation": "Desde la creación",
-    "stats.viewDetail": "Ver detalle →",
-    "stats.viewYear": "Ver por año →",
+    "stats.viewDetail": "Ver detalle ➔",
+    "stats.viewYear": "Ver por año ➔",
     "stats.recent": "Sesiones recientes",
     "stats.totalRecorded": "{time} registrados",
     "stats.sessionOne": "sesión",
@@ -406,7 +378,7 @@ const I18N = {
     "breakdown.historyEyebrow": "HISTORIAL",
     "breakdown.chooseYear": "Elige un año",
     "breakdown.yearEyebrow": "AÑO",
-    "breakdown.backYears": "← Años",
+    "breakdown.backYears": "⬅ Años",
     "breakdown.yearTotal": "Total del año",
     "cal.days": ["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"],
     "pet.pantry": "DESPENSA",
@@ -415,18 +387,18 @@ const I18N = {
     "pet.requirements": "REQUISITOS DE EVOLUCIÓN",
     "pet.level": "NIVEL {n} DE {total}",
     "pet.progress": "{fed} / {goal} h alimentadas · siguiente: {next}",
-    "pet.progressMax": "{fed} h alimentadas · ¡nivel máximo!",
+    "pet.progressMax": "{fed} h alimentadas · nivel máximo!",
     "pet.meatOne": "trozo",
     "pet.meatMany": "trozos",
     "pet.hint": "Próximo trozo en ~{m} min de Focus.",
-    "pet.levelRow": "Nivel {n} · {name}",
+    "pet.levelRow": "Nivel {n} — {name}",
     "pet.noMeat": "Aún no tienes carne. Cada hora neta de Focus da 1 trozo.",
     "pet.feedError": "No se pudo alimentar al tiburón.",
-    "level.unlocked": "¡EVOLUCIÓN DESBLOQUEADA!",
-    "level.hatched": "¡Tu huevito eclosionó!",
-    "level.up": "¡Subiste de nivel!",
+    "level.unlocked": "🎉 ¡EVOLUCIÓN DESBLOQUEADA!",
+    "level.hatched": "🐣 ¡Tu huevito eclosionó!",
+    "level.up": "⭐ ¡Subiste de nivel!",
     "level.desc": "Nivel {n} de {total}: {name}",
-    "level.great": "¡Genial!",
+    "level.great": "👍 ¡Genial!",
     "editor.new": "NUEVO TEMPORIZADOR",
     "editor.edit": "EDITAR TEMPORIZADOR",
     "editor.createTitle": "Crea un espacio",
@@ -448,7 +420,7 @@ const I18N = {
     "editor.save": "Guardar",
     "editor.saveError": "No se pudo guardar la información.",
     "editor.busyDelete": "Termina la sesión activa antes de eliminar el temporizador.",
-    "editor.confirmDelete": "¿Eliminar “{title}” y sus estadísticas?",
+    "editor.confirmDelete": "🗑️ ¿Eliminar „{title}“ y sus estadísticas?",
     "editor.deleteError": "No se pudo eliminar el temporizador.",
     "toast.updated": "Temporizador actualizado.",
     "toast.created": "Temporizador creado.",
@@ -493,11 +465,10 @@ function readStoredLanguage() {
   try {
     const stored = window.localStorage.getItem(LANG_STORAGE_KEY);
     if (stored && LANGUAGES[stored]) return stored;
-  } catch (_) { /* almacenamiento no disponible */ }
+  } catch (_) {}
   return DEFAULT_LANGUAGE;
 }
 
-// Traduce una clave al idioma activo; {variable} se reemplaza con vars
 function t(key, vars = {}) {
   const table = I18N[settings.language] || I18N[DEFAULT_LANGUAGE];
   const value = table[key] ?? I18N[DEFAULT_LANGUAGE][key] ?? key;
@@ -514,18 +485,14 @@ function sharkName(index) {
   return names[index] || "";
 }
 
-
 /* ==========================================================================
    3. REFERENCIAS AL DOM
    ========================================================================== */
 const elements = {
-  // Autenticación
   authView: document.querySelector("#auth-view"),
   app: document.querySelector("#app"),
   googleLogin: document.querySelector("#google-login"),
   authError: document.querySelector("#auth-error"),
-
-  // Usuario / navegación
   layout: document.querySelector(".layout"),
   userName: document.querySelector("#user-name"),
   userInitial: document.querySelector("#user-initial"),
@@ -538,16 +505,12 @@ const elements = {
   timerView: document.querySelector("#timer-view"),
   statsView: document.querySelector("#stats-view"),
   aquariumView: document.querySelector("#aquarium-view"),
-
-  // Lista de temporizadores
   timerList: document.querySelector("#timer-list"),
   timerLimit: document.querySelector("#timer-limit"),
   addTimer: document.querySelector("#add-timer"),
   emptyAddTimer: document.querySelector("#empty-add-timer"),
   editActiveTimer: document.querySelector("#edit-active-timer"),
   emptyState: document.querySelector("#empty-state"),
-
-  // Workspace del temporizador
   timerWorkspace: document.querySelector("#timer-workspace"),
   timerHeading: document.querySelector("#timer-heading"),
   timerSubtitle: document.querySelector("#timer-subtitle"),
@@ -566,8 +529,6 @@ const elements = {
   finishButton: document.querySelector("#finish-button"),
   skipBreakButton: document.querySelector("#skip-break-button"),
   timerMessage: document.querySelector("#timer-message"),
-
-  // Estadísticas
   statsEmpty: document.querySelector("#stats-empty"),
   statsWorkspace: document.querySelector("#stats-workspace"),
   statsHeading: document.querySelector("#stats-heading"),
@@ -592,8 +553,6 @@ const elements = {
   chartTitle: document.querySelector("#chart-title"),
   chartTotal: document.querySelector("#chart-total"),
   chartScope: document.querySelector("#chart-scope"),
-
-  // Acuario / mascota
   tank: document.querySelector("#tank"),
   shark: document.querySelector("#shark"),
   sharkFlip: document.querySelector("#shark-flip"),
@@ -610,8 +569,6 @@ const elements = {
   levelupTitle: document.querySelector("#levelup-title"),
   levelupImage: document.querySelector("#levelup-image"),
   levelupDesc: document.querySelector("#levelup-desc"),
-
-  // Modal: editor de temporizador
   timerModal: document.querySelector("#timer-modal"),
   timerForm: document.querySelector("#timer-form"),
   editorEyebrow: document.querySelector("#editor-eyebrow"),
@@ -622,22 +579,16 @@ const elements = {
   timerPriority: document.querySelector("#timer-priority"),
   timerFormMessage: document.querySelector("#timer-form-message"),
   deleteTimer: document.querySelector("#delete-timer"),
-
-  // Modal: ajustes
   settingsModal: document.querySelector("#settings-modal"),
   darkModeToggle: document.querySelector("#dark-mode-toggle"),
   volumeSlider: document.querySelector("#volume-slider"),
   volumeLabel: document.querySelector("#volume-label"),
   notificationsButton: document.querySelector("#notifications-button"),
   notificationStatus: document.querySelector("#notification-status"),
-
-  // Modal: desglose
   breakdownModal: document.querySelector("#breakdown-modal"),
   breakdownEyebrow: document.querySelector("#breakdown-eyebrow"),
   breakdownTitle: document.querySelector("#breakdown-title"),
   breakdownList: document.querySelector("#breakdown-list"),
-
-  // Toast
   toast: document.querySelector("#toast"),
   toastIcon: document.querySelector("#toast-icon"),
   toastMessage: document.querySelector("#toast-message"),
@@ -653,30 +604,25 @@ let selectedTimerId = null;
 let settings = { ...DEFAULT_SETTINGS, language: readStoredLanguage() };
 let editingTimerId = null;
 let statsMode = "data";
-
 let unsubscribeTimers = null;
 let unsubscribeProfile = null;
 let tickerId = null;
 let toastTimeout = null;
 let volumeSaveTimeout = null;
-
 let chartInstance = null;
-let chartPeriod = "week";   // day | yesterday | week | month | year
-let chartType = "bar";      // bar | line
-let syncMode = false;       // Sincronización: suma de todos los cronómetros
+let chartPeriod = "week";
+let chartType = "bar";
+let syncMode = false;
 const hiddenSeries = new Set();
 let editorTags = [];
 let editorColor = TAG_COLORS[0];
-let chartScope = "year";    // year | total (solo con periodo "year")
-
+let chartScope = "year";
 const completingTimers = new Set();
-const pendingTimerUpdates = new Map();
+let pendingTimerUpdates = new Map();
 
 /* ==========================================================================
    5. UTILIDADES
    ========================================================================== */
-
-/* ---- Validación y saneamiento de datos ---- */
 function numeric(value, fallback) {
   return Number.isFinite(Number(value)) ? Number(value) : fallback;
 }
@@ -713,7 +659,6 @@ function timerFromData(id, raw = {}) {
   const phase = raw.phase === "break" ? "break" : "focus";
   const activeDurationMs = Math.max(0, numeric(raw.activeDurationMs, 0));
   const remainingMs = Math.max(0, numeric(raw.remainingMs, 0));
-
   return {
     id,
     title: typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : t("timer.untitled"),
@@ -733,7 +678,6 @@ function timerFromData(id, raw = {}) {
   };
 }
 
-/* ---- Referencias a Firestore ---- */
 function timerReference(timerId) {
   return doc(db, "users", currentUser.uid, "timers", timerId);
 }
@@ -746,7 +690,6 @@ function selectedTimer() {
   return timers.find((timer) => timer.id === selectedTimerId) || null;
 }
 
-/* ---- Textos ---- */
 function priorityText(priority) {
   return t(`priority.${["high", "medium", "low"].includes(priority) ? priority : "medium"}`);
 }
@@ -759,14 +702,12 @@ function sessionId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/* ---- Formato de tiempo ---- */
 function formatClock(milliseconds) {
   const seconds = Math.max(0, Math.ceil(milliseconds / 1000));
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-// Formato en texto: "2 horas y 3 minutos" / "2 hours and 3 minutes"
 function formatStudyTime(minutes) {
   const total = Math.max(0, numeric(minutes, 0));
   if (total > 0 && total < 0.5) return t("time.lessThanMin");
@@ -779,7 +720,6 @@ function formatStudyTime(minutes) {
   return h ? hText : mText;
 }
 
-// Formato visual para tarjetas: número grande + unidad pequeña
 function setDuration(element, minutes) {
   if (!element) return;
   const rounded = Math.round(Math.max(0, numeric(minutes, 0)));
@@ -789,7 +729,6 @@ function setDuration(element, minutes) {
   element.innerHTML = h ? (m ? `${part(h, "h")}${part(m, "min")}` : part(h, "h")) : part(m, "min");
 }
 
-// Formato compacto para el calendario: "2h 3m"
 function formatCompact(minutes) {
   const rounded = Math.round(minutes);
   const h = Math.floor(rounded / 60);
@@ -805,7 +744,6 @@ function sumSessions(sessions, predicate) {
   return sessions.reduce((total, session) => total + (predicate(session) ? session.minutes : 0), 0);
 }
 
-/* ---- Cálculos del temporizador ---- */
 function timerRemaining(timer) {
   if (timer.status === "running" && timer.endTime) return Math.max(0, timer.endTime - Date.now());
   if (timer.status === "paused") return timer.remainingMs;
@@ -826,8 +764,6 @@ function setSyncStatus(message, saving = false) {
 /* ==========================================================================
    6. SONIDO Y NOTIFICACIONES
    ========================================================================== */
-
-// Sintetizador con Web Audio API
 function playAlarm() {
   if (settings.volume <= 0) return;
   try {
@@ -836,18 +772,14 @@ function playAlarm() {
     const ctx = new AudioContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-
     osc.type = "sine";
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime);       // Nota D5
-    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);   // Nota A5
-
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15);
     const vol = Math.min(1, Math.max(0, settings.volume / 100));
     gain.gain.setValueAtTime(vol, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.8);
-
     osc.connect(gain);
     gain.connect(ctx.destination);
-
     osc.start();
     osc.stop(ctx.currentTime + 0.8);
   } catch (err) {
@@ -855,7 +787,6 @@ function playAlarm() {
   }
 }
 
-// Notificaciones nativas (solo si la pestaña está oculta)
 function notifyWhenHidden(title, body) {
   if (document.hidden && "Notification" in window && Notification.permission === "granted") {
     new Notification(title, { body, icon: "/favicon.ico" });
@@ -913,7 +844,6 @@ function renderAll() {
   renderStatistics();
 }
 
-/* ---- Lista de temporizadores ---- */
 function renderTimers() {
   if (!elements.timerList) return;
   elements.timerList.replaceChildren();
@@ -923,7 +853,6 @@ function renderTimers() {
       ? t("side.limitReached", { n: MAX_TIMERS })
       : t("side.limit", { n: MAX_TIMERS });
   }
-
   timers.forEach((timer) => {
     const card = document.createElement("div");
     card.className = `timer-card${timer.id === selectedTimerId ? " is-selected" : ""}${timer.status === "running" ? " is-running" : ""}`;
@@ -933,19 +862,16 @@ function renderTimers() {
     card.innerHTML = `
       <strong class="timer-card-title"></strong>
       <span class="timer-card-info"></span>
-      <button type="button" class="timer-card-edit" aria-label="${t("timer.editAria")}">✎</button>`;
-
+      <button type="button" class="timer-card-edit" aria-label="${t("timer.editAria")}">✏️</button>`;
     card.querySelector(".timer-card-title").textContent = timer.title;
     const info = card.querySelector(".timer-card-info");
     info.textContent = `${timer.focusMinutes} / ${timer.breakMinutes} min · ${priorityText(timer.priority)}`;
-
     if (timer.status !== "idle") {
       const badge = document.createElement("span");
       badge.className = "timer-card-status";
       badge.textContent = timer.status === "paused" ? t("badge.paused") : t("badge.active");
       info.append(badge);
     }
-
     card.style.setProperty("--tag", timerColor(timer));
     if (timer.tags.length) {
       const row = document.createElement("div");
@@ -969,26 +895,22 @@ function renderTimers() {
       }
     });
     card.querySelector(".timer-card-edit").addEventListener("click", () => openTimerEditor(timer));
-
     elements.timerList.append(card);
   });
 }
 
-/* ---- Workspace del temporizador ---- */
 function renderTimerWorkspace() {
   const timer = selectedTimer();
   const hasTimer = Boolean(timer);
   if (elements.emptyState) elements.emptyState.hidden = hasTimer;
   if (elements.timerWorkspace) elements.timerWorkspace.hidden = !hasTimer;
   if (!timer) return;
-
   const isFocus = timer.phase === "focus";
   const remaining = timerRemaining(timer);
   const progress = timerProgress(timer, remaining);
   const progressColor = isFocus ? "var(--accent)" : "var(--success)";
   const remainderColor = isFocus ? "rgba(14, 165, 233, 0.15)" : "rgba(16, 185, 129, 0.15)";
   const degrees = progress * 360;
-
   elements.timerHeading.textContent = timer.title;
   elements.timerSubtitle.textContent = t("timer.subtitle", { f: timer.focusMinutes, b: timer.breakMinutes });
   elements.priorityChip.textContent = t(`priority.chip.${timer.priority}`);
@@ -1005,7 +927,6 @@ function renderTimerWorkspace() {
   elements.breakDuration.textContent = `${timer.breakMinutes} min`;
   elements.progressRing.style.background = `conic-gradient(${progressColor} ${degrees}deg, ${remainderColor} ${degrees}deg)`;
   elements.progressRing.classList.toggle("is-break", !isFocus);
-
   elements.startButton.hidden = timer.status !== "idle";
   elements.pauseButton.hidden = timer.status === "idle";
   elements.finishButton.hidden = timer.status === "idle";
@@ -1019,8 +940,6 @@ function renderTimerWorkspace() {
       : t("timer.msgIdle");
 }
 
-/* ---- Estadísticas ---- */
-// Origen de datos: un cronómetro o, con Sincronización, la suma de todos
 function statsSource() {
   if (syncMode) {
     return timers.length ? { title: t("stats.syncTitle"), sessions: timers.flatMap((t) => t.sessions) } : null;
@@ -1044,7 +963,6 @@ function renderStatistics() {
   if (elements.statsWorkspace) elements.statsWorkspace.hidden = !hasTimer;
   if (!source) return;
   syncUi();
-
   const now = new Date();
   const todayStart = localDayStart(now).getTime();
   const tomorrowStart = todayStart + DAY_MS;
@@ -1052,13 +970,11 @@ function renderStatistics() {
   const sevenDaysStart = todayStart - 6 * DAY_MS;
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const sessions = source.sessions;
-
   const day = sumSessions(sessions, (s) => s.completedAt >= todayStart && s.completedAt < tomorrowStart);
   const yesterday = sumSessions(sessions, (s) => s.completedAt >= yesterdayStart && s.completedAt < todayStart);
   const week = sumSessions(sessions, (s) => s.completedAt >= sevenDaysStart && s.completedAt < tomorrowStart);
   const month = sumSessions(sessions, (s) => s.completedAt >= monthStart && s.completedAt < tomorrowStart);
   const total = sumSessions(sessions, () => true);
-
   elements.statsHeading.textContent = source.title;
   elements.statsTotalLabel.textContent = t("stats.totalRecorded", { time: formatStudyTime(total) });
   setDuration(elements.statDay, day);
@@ -1067,7 +983,6 @@ function renderStatistics() {
   setDuration(elements.statMonth, month);
   setDuration(elements.statTotal, total);
   elements.recentSummary.textContent = `${sessions.length} ${sessions.length === 1 ? t("stats.sessionOne") : t("stats.sessionMany")}`;
-
   renderRecentSessions(sessions);
   renderStatisticsMode();
 }
@@ -1075,7 +990,6 @@ function renderStatistics() {
 function renderRecentSessions(sessions) {
   if (!elements.recentList) return;
   elements.recentList.replaceChildren();
-
   const latest = [...sessions].sort((a, b) => b.completedAt - a.completedAt).slice(0, 6);
   if (!latest.length) {
     const empty = document.createElement("p");
@@ -1084,7 +998,6 @@ function renderRecentSessions(sessions) {
     elements.recentList.append(empty);
     return;
   }
-
   latest.forEach((session) => {
     const row = document.createElement("div");
     row.className = "session-row";
@@ -1114,7 +1027,6 @@ function setStatisticsMode(nextMode) {
   renderStatisticsMode();
 }
 
-/* ---- Gráficos (Chart.js) ---- */
 function chartColors() {
   const isDark = document.body.classList.contains("dark-mode");
   return {
@@ -1137,14 +1049,12 @@ function withAlpha(hex, alpha) {
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
 }
 
-// Rangos de tiempo (bloques) del periodo elegido
 function chartRanges(allSessions) {
   const now = new Date();
   const todayStart = localDayStart(now).getTime();
   const ranges = [];
   const push = (label, start, end) => ranges.push({ label, start, end });
   let title = chartTitles()[chartPeriod] || "";
-
   if (chartPeriod === "day" || chartPeriod === "yesterday") {
     const start = chartPeriod === "day" ? todayStart : todayStart - DAY_MS;
     for (let h = 0; h < 24; h += 1) push(String(h).padStart(2, "0"), start + h * 3_600_000, start + (h + 1) * 3_600_000);
@@ -1209,25 +1119,20 @@ function renderCharts() {
   if (!source || !window.Chart || !elements.statsChart) return;
   destroyCharts();
   syncChartControls();
-
   const colors = chartColors();
   const { ranges, title } = chartRanges(source.sessions);
   const valuesOf = (sessions) => ranges.map((r) => sumSessions(sessions, (x) => x.completedAt >= r.start && x.completedAt < r.end));
-
   const defs = syncMode
     ? [...timers.map((t) => ({ id: t.id, name: t.title, color: timerColor(t), sessions: t.sessions, total: false })),
        { id: "total", name: "Total", color: colors.accent, sessions: source.sessions, total: true }]
     : [{ id: "single", name: source.title, color: colors.accent, sessions: source.sessions, total: true }];
   renderLegend(defs);
-
   const series = defs.filter((d) => !hiddenSeries.has(d.id)).map((d) => ({ ...d, values: valuesOf(d.sessions) }));
   elements.chartTitle.textContent = title;
   elements.chartTotal.textContent = formatStudyTime(valuesOf(source.sessions).reduce((a, b) => a + b, 0));
-
   const asHours = Math.max(0, ...series.flatMap((d) => d.values)) >= 120;
   const isLine = chartType === "line";
   const labels = ranges.map((r) => r.label);
-
   const datasets = series.map((d) => {
     const ghost = syncMode && !d.total;
     const base = { label: d.name, data: d.values.map((v) => Number((asHours ? v / 60 : v).toFixed(2))) };
@@ -1236,7 +1141,6 @@ function renderCharts() {
           borderWidth: ghost ? 2 : 3, borderDash: ghost ? [6, 4] : [], pointRadius: labels.length > 16 ? 0 : ghost ? 2 : 3, pointBackgroundColor: d.color }
       : { ...base, backgroundColor: ghost ? withAlpha(d.color, 0.3) : d.color, borderColor: d.color, borderWidth: ghost ? 1.5 : 0, borderRadius: 6, maxBarThickness: 28 };
   });
-
   chartInstance = new window.Chart(elements.statsChart, {
     type: isLine ? "line" : "bar",
     data: { labels, datasets },
@@ -1257,7 +1161,7 @@ function renderCharts() {
 }
 
 /* ==========================================================================
-   9. MODAL DE DESGLOSE (HOY, AYER, SEMANA, MES)
+   9. MODAL DE DESGLOSE
    ========================================================================== */
 function createBreakdownRow(label, value) {
   const row = document.createElement("div");
@@ -1274,22 +1178,17 @@ function renderDayBreakdown(period, sessions, todayStart) {
   const isToday = period === "day";
   const startTime = isToday ? todayStart : todayStart - DAY_MS;
   const endTime = startTime + DAY_MS;
-
   elements.breakdownEyebrow.textContent = isToday ? t("breakdown.todayEyebrow") : t("breakdown.yesterdayEyebrow");
   elements.breakdownTitle.textContent = isToday ? t("breakdown.todayTitle") : t("breakdown.yesterdayTitle");
-
   const filtered = sessions.filter((s) => s.completedAt >= startTime && s.completedAt < endTime);
-
   if (!filtered.length) {
     elements.breakdownList.innerHTML = `<p class="session-empty">${t("breakdown.noRecords")}</p>`;
     return;
   }
-
   const hourly = Array(24).fill(0);
   filtered.forEach((s) => {
     hourly[new Date(s.completedAt).getHours()] += s.minutes;
   });
-
   hourly.forEach((mins, h) => {
     if (mins <= 0) return;
     const startLabel = `${String(h).padStart(2, "0")}:00`;
@@ -1301,7 +1200,6 @@ function renderDayBreakdown(period, sessions, todayStart) {
 function renderWeekBreakdown(sessions, todayStart) {
   elements.breakdownEyebrow.textContent = t("breakdown.weekEyebrow");
   elements.breakdownTitle.textContent = t("breakdown.weekTitle");
-
   for (let offset = 0; offset < 7; offset += 1) {
     const d = new Date(todayStart - offset * DAY_MS);
     const dayStart = d.getTime();
@@ -1319,43 +1217,34 @@ function renderMonthBreakdown(sessions, now) {
   elements.breakdownTitle.textContent = now
     .toLocaleDateString(locale(), { month: "long", year: "numeric" })
     .toUpperCase();
-
   const year = now.getFullYear();
   const month = now.getMonth();
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
-
-  // Lunes = 0 ... Domingo = 6
   let startDayIdx = firstDay.getDay() - 1;
   if (startDayIdx === -1) startDayIdx = 6;
-
   const grid = document.createElement("div");
   grid.className = "calendar-grid";
-
   t("cal.days").forEach((d) => {
     const header = document.createElement("div");
     header.className = "calendar-day-header";
     header.textContent = d;
     grid.append(header);
   });
-
   for (let i = 0; i < startDayIdx; i += 1) {
     const empty = document.createElement("div");
     empty.className = "calendar-day-cell is-empty";
     grid.append(empty);
   }
-
   for (let day = 1; day <= lastDay.getDate(); day += 1) {
     const dayStart = new Date(year, month, day).getTime();
     const dayEnd = new Date(year, month, day + 1).getTime();
     const mins = sumSessions(sessions, (s) => s.completedAt >= dayStart && s.completedAt < dayEnd);
-
     const cell = document.createElement("div");
     cell.className = `calendar-day-cell${mins > 0 ? " has-data" : ""}`;
     cell.innerHTML = `<span class="day-num">${day}</span>${mins > 0 ? `<span class="day-hrs">${formatCompact(mins)}</span>` : ""}`;
     grid.append(cell);
   }
-
   elements.breakdownList.append(grid);
 }
 
@@ -1363,13 +1252,11 @@ function renderYearsBreakdown(sessions) {
   elements.breakdownEyebrow.textContent = t("breakdown.historyEyebrow");
   elements.breakdownTitle.textContent = t("breakdown.chooseYear");
   elements.breakdownList.replaceChildren();
-
   const years = new Set([new Date().getFullYear()]);
   sessions.forEach((s) => years.add(new Date(s.completedAt).getFullYear()));
-
   [...years].sort((a, b) => b - a).forEach((year) => {
     const mins = sumSessions(sessions, (s) => new Date(s.completedAt).getFullYear() === year);
-    const row = createBreakdownRow(String(year), `${formatStudyTime(mins)}  ›`);
+    const row = createBreakdownRow(String(year), `${formatStudyTime(mins)} ➔`);
     row.classList.add("is-clickable");
     row.tabIndex = 0;
     row.setAttribute("role", "button");
@@ -1385,19 +1272,16 @@ function renderYearMonths(sessions, year) {
   elements.breakdownEyebrow.textContent = t("breakdown.yearEyebrow");
   elements.breakdownTitle.textContent = String(year);
   elements.breakdownList.replaceChildren();
-
   const back = document.createElement("button");
   back.type = "button";
   back.className = "button button-quiet back-button";
   back.textContent = t("breakdown.backYears");
   back.addEventListener("click", () => renderYearsBreakdown(sessions));
-
   const yearTotal = sumSessions(sessions, (s) => new Date(s.completedAt).getFullYear() === year);
   const summary = document.createElement("div");
   summary.className = "year-summary";
   summary.innerHTML = `<span>${t("breakdown.yearTotal")}</span><strong></strong>`;
   summary.querySelector("strong").textContent = formatStudyTime(yearTotal);
-
   const grid = document.createElement("div");
   grid.className = "month-grid";
   for (let month = 0; month < 12; month += 1) {
@@ -1409,23 +1293,19 @@ function renderYearMonths(sessions, year) {
     const name = new Date(year, month, 1).toLocaleDateString(locale(), { month: "short" });
     cell.innerHTML = "<span></span><strong></strong>";
     cell.querySelector("span").textContent = name.charAt(0).toUpperCase() + name.slice(1);
-    cell.querySelector("strong").textContent = mins > 0 ? formatCompact(mins) : "–";
+    cell.querySelector("strong").textContent = mins > 0 ? formatCompact(mins) : "—";
     grid.append(cell);
   }
-
   elements.breakdownList.append(back, summary, grid);
 }
 
 function openBreakdownModal(period) {
   const source = statsSource();
   if (!source) return;
-
   const now = new Date();
   const todayStart = localDayStart(now).getTime();
   const sessions = source.sessions;
-
   elements.breakdownList.replaceChildren();
-
   if (period === "day" || period === "yesterday") {
     renderDayBreakdown(period, sessions, todayStart);
   } else if (period === "week") {
@@ -1435,7 +1315,6 @@ function openBreakdownModal(period) {
   } else if (period === "total") {
     renderYearsBreakdown(sessions);
   }
-
   openModal(elements.breakdownModal);
 }
 
@@ -1523,7 +1402,7 @@ function renderEditorTags() {
     chip.textContent = name;
     const x = document.createElement("button");
     x.type = "button";
-    x.textContent = "×";
+    x.textContent = "✕";
     x.setAttribute("aria-label", t("editor.removeTag", { name }));
     x.addEventListener("click", () => { editorTags.splice(i, 1); renderEditorTags(); });
     chip.append(x);
@@ -1547,17 +1426,14 @@ function editorMessage(message) {
 
 async function saveTimer(event) {
   event.preventDefault();
-
   const title = elements.timerName.value.trim();
   const focusMinutes = validMinutes(elements.focusMinutes.value, MAX_FOCUS_MINUTES);
   const breakMinutes = validMinutes(elements.breakMinutes.value, MAX_BREAK_MINUTES);
   const priority = elements.timerPriority.value;
-
   if (!title || !focusMinutes || !breakMinutes || !["high", "medium", "low"].includes(priority)) {
     editorMessage(t("editor.invalid"));
     return;
   }
-
   const existing = editingTimerId ? timers.find((timer) => timer.id === editingTimerId) : null;
   if (existing && existing.status !== "idle") {
     editorMessage(t("editor.busyEdit"));
@@ -1567,7 +1443,6 @@ async function saveTimer(event) {
     editorMessage(t("editor.maxTimers", { n: MAX_TIMERS }));
     return;
   }
-
   setSyncStatus(t("sync.saving"), true);
   try {
     const now = Date.now();
@@ -1611,7 +1486,6 @@ async function removeTimer() {
     return;
   }
   if (!window.confirm(t("editor.confirmDelete", { title: timer.title }))) return;
-
   setSyncStatus(t("sync.deleting"), true);
   try {
     await deleteDoc(timerReference(timer.id));
@@ -1632,7 +1506,6 @@ async function removeTimer() {
 function startTimer() {
   const timer = selectedTimer();
   if (!timer || timer.status !== "idle") return;
-
   const startedAt = Date.now();
   const durationMs = (timer.phase === "focus" ? timer.focusMinutes : timer.breakMinutes) * 60_000;
   const patch = {
@@ -1642,11 +1515,9 @@ function startTimer() {
     activeDurationMs: durationMs,
     updatedAt: startedAt
   };
-
   const previous = applyOptimisticTimerUpdate(timer.id, patch);
   startTicker();
   setSyncStatus(t("sync.syncing"), true);
-
   const task = runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(timerReference(timer.id));
     if (!snapshot.exists()) return false;
@@ -1661,18 +1532,15 @@ function startTimer() {
 function togglePause() {
   const timer = selectedTimer();
   if (!timer || timer.status === "idle") return;
-
   const changedAt = Date.now();
   const isPausing = timer.status === "running";
   const remainingMs = isPausing ? Math.max(0, timer.endTime - changedAt) : timer.remainingMs;
   const patch = isPausing
     ? { status: "paused", endTime: null, remainingMs, updatedAt: changedAt }
     : { status: "running", endTime: changedAt + remainingMs, remainingMs: null, updatedAt: changedAt };
-
   const previous = applyOptimisticTimerUpdate(timer.id, patch);
   startTicker();
   setSyncStatus(t("sync.syncing"), true);
-
   const task = runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(timerReference(timer.id));
     if (!snapshot.exists()) return false;
@@ -1688,7 +1556,6 @@ function togglePause() {
 function finishTimer() {
   const timer = selectedTimer();
   if (!timer || timer.status === "idle") return;
-
   const finishedAt = Date.now();
   const remainingMs = timer.status === "running"
     ? Math.max(0, timer.endTime - finishedAt)
@@ -1699,10 +1566,7 @@ function finishTimer() {
   const session = registeredMinutes > 0
     ? { id: sessionId(), minutes: registeredMinutes, completedAt: finishedAt }
     : null;
-
-  // Descanso solo si el estudio fue mayor a 5 minutos (el descanso NUNCA se registra)
   const offerBreak = registeredMinutes > BREAK_MIN_STUDY_MINUTES;
-
   const patch = {
     sessions: session ? [...timer.sessions, session] : timer.sessions,
     phase: offerBreak ? "break" : "focus",
@@ -1712,7 +1576,6 @@ function finishTimer() {
     activeDurationMs: null,
     updatedAt: finishedAt
   };
-
   const previous = applyOptimisticTimerUpdate(timer.id, patch);
   showToast(
     timer.phase === "focus"
@@ -1722,13 +1585,11 @@ function finishTimer() {
       : t("toast.breakEnded")
   );
   setSyncStatus(t("sync.recording"), true);
-
   const task = runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(timerReference(timer.id));
     if (!snapshot.exists()) return false;
     const current = timerFromData(timer.id, snapshot.data());
     if (current.status === "idle") return false;
-
     const cloudRemainingMs = current.status === "running"
       ? Math.max(0, current.endTime - finishedAt)
       : current.remainingMs;
@@ -1738,7 +1599,6 @@ function finishTimer() {
     const cloudSession = cloudRegisteredMinutes > 0
       ? { id: session?.id || sessionId(), minutes: cloudRegisteredMinutes, completedAt: finishedAt }
       : null;
-
     transaction.update(snapshot.ref, {
       sessions: cloudSession ? [...current.sessions, cloudSession] : current.sessions,
       phase: cloudRegisteredMinutes > BREAK_MIN_STUDY_MINUTES ? "break" : "focus",
@@ -1748,7 +1608,6 @@ function finishTimer() {
       activeDurationMs: null,
       updatedAt: finishedAt
     });
-    // Horas netas para la mascota (independientes del temporizador)
     if (cloudRegisteredMinutes > 0) {
       transaction.set(petReference(), { earnedMinutes: increment(cloudRegisteredMinutes) }, { merge: true });
     }
@@ -1760,11 +1619,9 @@ function finishTimer() {
 function skipBreak() {
   const timer = selectedTimer();
   if (!timer || timer.status !== "idle" || timer.phase !== "break") return;
-
   const patch = { phase: "focus", updatedAt: Date.now() };
   const previous = applyOptimisticTimerUpdate(timer.id, patch);
   setSyncStatus(t("sync.syncing"), true);
-
   const task = runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(timerReference(timer.id));
     if (!snapshot.exists()) return false;
@@ -1783,7 +1640,6 @@ async function completeExpiredTimer(timer) {
     !timer.endTime ||
     timer.endTime > Date.now()
   ) return;
-
   completingTimers.add(timer.id);
   try {
     const result = await runTransaction(db, async (transaction) => {
@@ -1792,7 +1648,6 @@ async function completeExpiredTimer(timer) {
       const current = timerFromData(timer.id, snapshot.data());
       const now = Date.now();
       if (current.status !== "running" || !current.endTime || current.endTime > now) return null;
-
       const completedPhase = current.phase;
       const sessions = [...current.sessions];
       if (completedPhase === "focus") {
@@ -1802,7 +1657,6 @@ async function completeExpiredTimer(timer) {
           completedAt: current.endTime
         });
       }
-
       transaction.update(snapshot.ref, {
         sessions,
         phase: completedPhase === "focus" ? "break" : "focus",
@@ -1812,13 +1666,11 @@ async function completeExpiredTimer(timer) {
         activeDurationMs: null,
         updatedAt: now
       });
-      // Horas netas para la mascota (independientes del temporizador)
       if (completedPhase === "focus") {
         transaction.set(petReference(), { earnedMinutes: increment(current.activeDurationMs / 60_000) }, { merge: true });
       }
       return { title: current.title, phase: completedPhase };
     });
-
     if (result) {
       const isFocus = result.phase === "focus";
       const message = isFocus
@@ -1836,13 +1688,12 @@ async function completeExpiredTimer(timer) {
 }
 
 /* ==========================================================================
-   13. TICKER (actualiza cada segundo)
+   13. TICKER
    ========================================================================== */
 function startTicker() {
   if (tickerId) return;
   tickerId = window.setInterval(() => {
     let activeRunning = false;
-
     timers.forEach((timer) => {
       if (timer.status === "running") {
         activeRunning = true;
@@ -1851,9 +1702,7 @@ function startTicker() {
         }
       }
     });
-
     renderTimerWorkspace();
-
     if (!activeRunning) {
       window.clearInterval(tickerId);
       tickerId = null;
@@ -1862,7 +1711,7 @@ function startTicker() {
 }
 
 /* ==========================================================================
-   14. AJUSTES (TEMA, VOLUMEN, NOTIFICACIONES)
+   14. AJUSTES
    ========================================================================== */
 function applySettings(nextSettings) {
   const languageChanged = Boolean(LANGUAGES[nextSettings.language]) && nextSettings.language !== settings.language;
@@ -1875,12 +1724,10 @@ function applySettings(nextSettings) {
   else if (statsMode === "charts") renderCharts();
 }
 
-// Aplica el idioma activo: textos estáticos del HTML y re-render de todo lo dinámico
 function applyLanguage() {
   const lang = LANGUAGES[settings.language] ? settings.language : DEFAULT_LANGUAGE;
   document.documentElement.lang = lang;
-  try { window.localStorage.setItem(LANG_STORAGE_KEY, lang); } catch (_) { /* opcional */ }
-
+  try { window.localStorage.setItem(LANG_STORAGE_KEY, lang); } catch (_) {}
   document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
   document.querySelectorAll("[data-i18n-html]").forEach((el) => { el.innerHTML = t(el.dataset.i18nHtml); });
   document.querySelectorAll("[data-i18n-attr]").forEach((el) => {
@@ -1892,7 +1739,6 @@ function applyLanguage() {
   document.querySelector('meta[name="description"]')?.setAttribute("content", t("meta.description"));
   if (elements.languageSelect) elements.languageSelect.value = lang;
   setSyncStatus(t("sync.synced"));
-
   if (currentUser) {
     if (elements.userName && !currentUser.displayName) elements.userName.textContent = t("user.default");
     setupNotifications();
@@ -1916,7 +1762,6 @@ function setupNotifications() {
     if (elements.notificationStatus) elements.notificationStatus.textContent = t("settings.notifUnsupported");
     return;
   }
-
   if (Notification.permission === "granted") {
     if (elements.notificationStatus) elements.notificationStatus.textContent = t("settings.notifOn");
     if (elements.notificationsButton) elements.notificationsButton.disabled = true;
@@ -1936,19 +1781,17 @@ async function requestNotificationPermission() {
 }
 
 /* ==========================================================================
-   14b. MASCOTA: TIBURÓN (progreso independiente de los temporizadores)
+   14b. MASCOTA: TIBURÓN
    ========================================================================== */
-// Los nombres de cada nivel están en SHARK_NAMES (por idioma)
 const SHARK_LEVELS = [
   { hours: 0 }, { hours: 1 }, { hours: 5 }, { hours: 15 }, { hours: 35 },
   { hours: 70 }, { hours: 120 }, { hours: 200 }, { hours: 320 }, { hours: 500 }
 ];
 const SHARK_COLORS = ["#f5e6c8", "#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7", "#2563eb", "#4f46e5", "#64748b", "#7c3aed", "#1e293b"];
-
 let pet = { earnedMinutes: 0, meatFed: 0, game: null };
 let petReady = false, timersReady = false, petExists = false, petInitStarted = false;
 let unsubscribePet = null, lastPetLevel = null, renderedPetLevel = -1, roamId = null;
-let followUntil = 0;   // mientras sea futuro, el tiburón no nada al azar (sigue tu click)
+let followUntil = 0;
 
 function petReference() { return doc(db, "users", currentUser.uid, "pet", "main"); }
 
@@ -1961,7 +1804,6 @@ function petStats() {
   return { earned, fed, available, idx, level: SHARK_LEVELS[idx], next: SHARK_LEVELS[idx + 1] || null, hourFraction: (earned % 60) / 60 };
 }
 
-// Migración única: si no existe la mascota, parte de tus sesiones actuales
 function maybeInitPet() {
   if (!petReady || !timersReady || petExists || petInitStarted || !currentUser) return;
   petInitStarted = true;
@@ -1989,14 +1831,12 @@ function sharkSvg(idx) {
 function renderAquarium(force = false) {
   if (!elements.aquariumView || !currentUser) return;
   const s = petStats();
-
   if (force || renderedPetLevel !== s.idx) {
     renderedPetLevel = s.idx;
     elements.sharkFlip.innerHTML = sharkSvg(s.idx);
     elements.shark.style.width = `${s.idx === 0 ? 70 : 60 + s.idx * 22}px`;
     roamShark();
   }
-
   elements.petName.textContent = sharkName(s.idx);
   elements.petLevelLabel.textContent = t("pet.level", { n: s.idx + 1, total: SHARK_LEVELS.length });
   if (s.next) {
@@ -2007,14 +1847,11 @@ function renderAquarium(force = false) {
     elements.petBar.style.width = "100%";
     elements.petProgressText.textContent = t("pet.progressMax", { fed: s.fed });
   }
-
-  elements.meatCount.textContent = `${s.available} ${s.available === 1 ? t("pet.meatOne") : t("pet.meatMany")} 🥩`;
+  elements.meatCount.textContent = `${s.available} ${s.available === 1 ? t("pet.meatOne") : t("pet.meatMany")} 🍖`;
   const minsLeft = Math.max(1, Math.ceil((1 - s.hourFraction) * 60));
   elements.meatHint.textContent = t("pet.hint", { m: minsLeft });
   elements.feedOne.disabled = s.available < 1;
   elements.feedAll.disabled = s.available < 1;
-
-  // Requisitos: solo nivel y horas necesarias (sin previsualización)
   elements.petLevels.replaceChildren();
   SHARK_LEVELS.forEach((l, i) => {
     const row = document.createElement("div");
@@ -2028,7 +1865,6 @@ function renderAquarium(force = false) {
   });
 }
 
-/* ---- Pantalla "Subiste de nivel" ---- */
 function showLevelUp(idx) {
   const level = SHARK_LEVELS[idx];
   if (!level || !elements.levelupModal) return;
@@ -2038,7 +1874,6 @@ function showLevelUp(idx) {
   openModal(elements.levelupModal);
 }
 
-/* ---- Movimiento por la pecera ---- */
 function roamShark(targetX, targetY) {
   const tank = elements.tank, shark = elements.shark;
   if (!tank || !shark || !tank.clientWidth) return;
@@ -2047,7 +1882,7 @@ function roamShark(targetX, targetY) {
   const curX = parseFloat(shark.style.left) || 0;
   const curY = parseFloat(shark.style.top) || 0;
   let x, y;
-  if (renderedPetLevel === 0) { x = maxX / 2; y = maxY; }           // el huevo reposa en el fondo
+  if (renderedPetLevel === 0) { x = maxX / 2; y = maxY; }
   else if (targetX !== undefined) {
     x = Math.min(maxX, Math.max(0, targetX - shark.offsetWidth / 2));
     y = Math.min(maxY, Math.max(0, targetY - shark.offsetHeight / 2));
@@ -2059,7 +1894,6 @@ function roamShark(targetX, targetY) {
   shark.style.top = `${y}px`;
 }
 
-// El tiburón nada hacia donde haces click y se queda ahí un rato
 function followClick(event) {
   if (renderedPetLevel === 0) return;
   const rect = elements.tank.getBoundingClientRect();
@@ -2072,15 +1906,15 @@ function startRoaming() {
   window.setTimeout(() => { if (Date.now() >= followUntil) roamShark(); }, 100);
   roamId = window.setInterval(() => { if (Date.now() >= followUntil) roamShark(); }, 5000);
 }
+
 function stopRoaming() { if (roamId) window.clearInterval(roamId); roamId = null; }
 
-/* ---- Alimentar ---- */
 function dropMeat() {
   const tank = elements.tank;
   if (!tank || !tank.clientWidth) return;
   const meat = document.createElement("span");
   meat.className = "meat-drop";
-  meat.textContent = "🥩";
+  meat.textContent = "🍖";
   const x = 30 + Math.random() * Math.max(1, tank.clientWidth - 60);
   meat.style.left = `${x}px`;
   tank.append(meat);
@@ -2120,8 +1954,6 @@ function listenToPet(user) {
   });
 }
 
-/* ---- Minijuego secreto: 5 clics sobre el tiburón ----
-   El nivel sale de petStats() (horas). Los Break Points viven aparte en pet.game y no afectan la evolución. */
 const eggCount = document.querySelector("#egg-count");
 const underwaterGame = createGame({
   el: {
@@ -2136,6 +1968,7 @@ const underwaterGame = createGame({
   load: () => pet.game,
   save: (game) => { if (currentUser) setDoc(petReference(), { game }, { merge: true }).catch((e) => console.error(e)); }
 });
+
 attachMultiClick(elements.shark, {
   count: 5, gapMs: 1200,
   onTick: (n) => { eggCount.hidden = n === 0; eggCount.textContent = `${n}/5`; },
@@ -2148,11 +1981,8 @@ attachMultiClick(elements.shark, {
 function listenToUserData(user) {
   if (unsubscribeTimers) unsubscribeTimers();
   if (unsubscribeProfile) unsubscribeProfile();
-
   timersReady = false;
   listenToPet(user);
-
-  // Perfil / preferencias
   unsubscribeProfile = onSnapshot(userReference(), (docSnap) => {
     if (docSnap.exists()) {
       const data = docSnap.data();
@@ -2165,16 +1995,12 @@ function listenToUserData(user) {
       setDoc(userReference(), { ...DEFAULT_SETTINGS, language: settings.language }, { merge: true });
     }
   });
-
-  // Temporizadores
   unsubscribeTimers = onSnapshot(collection(db, "users", user.uid, "timers"), (snapshot) => {
     const list = [];
-
     snapshot.forEach((docSnap) => {
       const timerId = docSnap.id;
       const cloudTimer = timerFromData(timerId, docSnap.data());
       const pending = pendingTimerUpdates.get(timerId);
-
       if (pending && pending.updatedAt >= cloudTimer.updatedAt) {
         list.push({ ...cloudTimer, ...pending.patch });
       } else {
@@ -2182,12 +2008,10 @@ function listenToUserData(user) {
         list.push(cloudTimer);
       }
     });
-
     timers = list.sort((a, b) => a.createdAt - b.createdAt);
     if (!selectedTimerId || !timers.some((t) => t.id === selectedTimerId)) {
       selectedTimerId = timers[0]?.id || null;
     }
-
     timersReady = true;
     maybeInitPet();
     renderAll();
@@ -2199,7 +2023,6 @@ function listenToUserData(user) {
    16. EVENTOS DE INTERFAZ
    ========================================================================== */
 function initEvents() {
-  // Autenticación
   elements.googleLogin?.addEventListener("click", async () => {
     try {
       elements.authError.hidden = true;
@@ -2211,13 +2034,9 @@ function initEvents() {
     }
   });
   elements.logoutButton?.addEventListener("click", () => signOut(auth));
-
-  // Navegación
-  elements.navButtons.forEach((btn) => {
-    btn.addEventListener("click", () => showView(btn.dataset.view));
+  elements.navButtons.forEach((b) => {
+    b.addEventListener("click", () => showView(b.dataset.view));
   });
-
-  // Temporizadores (CRUD)
   elements.addTimer?.addEventListener("click", () => openTimerEditor());
   elements.emptyAddTimer?.addEventListener("click", () => openTimerEditor());
   elements.editActiveTimer?.addEventListener("click", () => openTimerEditor(selectedTimer()));
@@ -2229,19 +2048,13 @@ function initEvents() {
   elements.tagInput?.addEventListener("blur", addTagFromInput);
   elements.syncToggle?.addEventListener("click", () => { syncMode = !syncMode; renderStatistics(); });
   elements.deleteTimer?.addEventListener("click", removeTimer);
-
-  // Controles del temporizador
   elements.startButton?.addEventListener("click", startTimer);
   elements.pauseButton?.addEventListener("click", togglePause);
   elements.finishButton?.addEventListener("click", finishTimer);
   elements.skipBreakButton?.addEventListener("click", skipBreak);
-
-  // Mascota
   elements.feedOne?.addEventListener("click", () => feedShark(false));
   elements.feedAll?.addEventListener("click", () => feedShark(true));
   elements.tank?.addEventListener("click", followClick);
-
-  // Ajustes
   elements.userButton?.addEventListener("click", () => openModal(elements.settingsModal));
   elements.settingsButton?.addEventListener("click", () => openModal(elements.settingsModal));
   elements.darkModeToggle?.addEventListener("change", (e) => {
@@ -2257,8 +2070,6 @@ function initEvents() {
   elements.languageSelect?.addEventListener("change", (e) => {
     if (LANGUAGES[e.target.value]) persistSettings({ language: e.target.value });
   });
-
-  // Estadísticas
   elements.statsModeButtons.forEach((btn) => {
     btn.addEventListener("click", () => setStatisticsMode(btn.dataset.statsMode));
   });
@@ -2266,10 +2077,7 @@ function initEvents() {
   elements.statYesterday?.closest(".metric-card")?.addEventListener("click", () => openBreakdownModal("yesterday"));
   elements.statWeek?.closest(".metric-card")?.addEventListener("click", () => openBreakdownModal("week"));
   elements.statMonth?.closest(".metric-card")?.addEventListener("click", () => openBreakdownModal("month"));
-
   elements.statTotal?.closest(".metric-card")?.addEventListener("click", () => openBreakdownModal("total"));
-
-  // Controles de gráficos (periodo, tipo y alcance)
   elements.statsChartsView?.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-chart-period], [data-chart-type], [data-chart-scope], [data-series]");
     if (!btn) return;
@@ -2282,8 +2090,6 @@ function initEvents() {
     }
     renderCharts();
   });
-
-  // Cierre de modales y toast
   document.querySelectorAll(".modal-close").forEach((btn) => {
     btn.addEventListener("click", (e) => closeModal(e.target.closest("dialog")));
   });
@@ -2297,11 +2103,9 @@ function initEvents() {
    ========================================================================== */
 onAuthStateChanged(auth, (user) => {
   currentUser = user;
-
   if (user) {
     if (elements.authView) elements.authView.hidden = true;
     if (elements.app) elements.app.hidden = false;
-
     if (elements.userName) elements.userName.textContent = user.displayName || t("user.default");
     if (elements.userInitial) elements.userInitial.textContent = (user.displayName || "U").charAt(0).toUpperCase();
     if (elements.userPhoto) {
@@ -2314,7 +2118,6 @@ onAuthStateChanged(auth, (user) => {
         if (elements.userInitial) elements.userInitial.hidden = false;
       }
     }
-
     setupNotifications();
     listenToUserData(user);
   } else {
@@ -2332,7 +2135,6 @@ onAuthStateChanged(auth, (user) => {
     renderedPetLevel = -1;
     followUntil = 0;
     destroyCharts();
-
     if (elements.authView) elements.authView.hidden = false;
     if (elements.app) elements.app.hidden = true;
   }
