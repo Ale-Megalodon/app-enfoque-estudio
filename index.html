@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#3a7ca5" />
-    <meta name="description" content="Temporizadores de enfoque sincronizados con tu cuenta de Google." />
+    <meta name="description" content="Focus timers synced with your Google account." />
     <title>Focus Cloud</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -13,57 +13,57 @@
       <section class="auth-card">
         <div class="logo-mark" aria-hidden="true"><i></i><i></i><i></i></div>
         <p class="eyebrow">FOCUS CLOUD</p>
-        <h1 id="auth-title">Estudia desde<br />cualquier lugar.</h1>
-        <p class="auth-copy">Tus temporizadores y estadísticas se sincronizan de forma privada con tu cuenta.</p>
+        <h1 id="auth-title" data-i18n-html="auth.title">Study from<br />anywhere.</h1>
+        <p class="auth-copy" data-i18n="auth.copy">Your timers and statistics sync privately with your account.</p>
         <button id="google-login" class="button button-google" type="button">
           <span class="google-g" aria-hidden="true">G</span>
-          Continuar con Google
+          <span data-i18n="auth.google">Continue with Google</span>
         </button>
         <p id="auth-error" class="form-message error" role="alert" hidden></p>
-        <p class="auth-note">Solo usamos Google para identificar y sincronizar tu espacio de estudio.</p>
+        <p class="auth-note" data-i18n="auth.note">We only use Google to identify you and sync your study space.</p>
       </section>
     </main>
 
     <div id="app" class="app" hidden>
       <header class="topbar">
-        <a class="brand" href="#timer" aria-label="Focus Cloud, ir a temporizadores">
+        <a class="brand" href="#timer" data-i18n-attr="aria-label:nav.brand" aria-label="Focus Cloud, go to timers">
           <span class="logo-mark logo-mark-small" aria-hidden="true"><i></i><i></i><i></i></span>
           <span>Focus Cloud</span>
         </a>
-        <nav class="main-nav" aria-label="Navegación principal">
-          <button class="nav-button is-active" type="button" data-view="timer"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><span>Temporizadores</span></button>
-          <button class="nav-button" type="button" data-view="stats"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span>Estadísticas</span></button>
-          <button class="nav-button" type="button" data-view="aquarium"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12c3.5-5 9-6 13-3.5L21 6l-1.5 6L21 18l-6-2.5C11 18 5.5 17 2 12z"/><circle cx="14" cy="11" r="1"/></svg><span>Acuario</span></button>
+        <nav class="main-nav" data-i18n-attr="aria-label:nav.main" aria-label="Main navigation">
+          <button class="nav-button is-active" type="button" data-view="timer"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9.5 2.5h5"/></svg><span data-i18n="nav.timers">Timers</span></button>
+          <button class="nav-button" type="button" data-view="stats"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg><span data-i18n="nav.stats">Statistics</span></button>
+          <button class="nav-button" type="button" data-view="aquarium"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12c3.5-5 9-6 13-3.5L21 6l-1.5 6L21 18l-6-2.5C11 18 5.5 17 2 12z"/><circle cx="14" cy="11" r="1"/></svg><span data-i18n="nav.aquarium">Aquarium</span></button>
         </nav>
         <div class="topbar-actions">
-          <button id="settings-button" class="icon-button" type="button" aria-label="Abrir ajustes" title="Ajustes">⚙</button>
-          <button id="user-button" class="user-button" type="button" title="Cerrar sesión">
+          <button id="settings-button" class="icon-button" type="button" data-i18n-attr="aria-label:nav.openSettings;title:settings.title" aria-label="Open settings" title="Settings">⚙</button>
+          <button id="user-button" class="user-button" type="button" data-i18n-attr="title:nav.userButton" title="Settings">
             <img id="user-photo" alt="" hidden />
             <span id="user-initial" class="user-initial">U</span>
-            <span id="user-name">Usuario</span>
+            <span id="user-name">User</span>
           </button>
         </div>
       </header>
 
       <main class="layout">
-        <aside class="timer-sidebar" aria-label="Tus temporizadores">
+        <aside class="timer-sidebar" data-i18n-attr="aria-label:side.aria" aria-label="Your timers">
           <div class="sidebar-heading">
             <div>
-              <p class="eyebrow">MIS TEMPORIZADORES</p>
-              <h2>Espacios de enfoque</h2>
+              <p class="eyebrow" data-i18n="side.eyebrow">MY TIMERS</p>
+              <h2 data-i18n="side.title">Focus spaces</h2>
             </div>
-            <button id="add-timer" class="icon-button add-button" type="button" aria-label="Añadir temporizador" title="Añadir temporizador">✎</button>
+            <button id="add-timer" class="icon-button add-button" type="button" data-i18n-attr="aria-label:side.add;title:side.add" aria-label="Add timer" title="Add timer">✎</button>
           </div>
           <div id="timer-list" class="timer-list"></div>
-          <p id="timer-limit" class="sidebar-note">Puedes crear hasta 5 temporizadores.</p>
+          <p id="timer-limit" class="sidebar-note">You can create up to 5 timers.</p>
         </aside>
 
         <section id="timer-view" class="workspace view is-active" aria-labelledby="timer-heading">
           <div id="empty-state" class="empty-state" hidden>
             <span class="empty-icon" aria-hidden="true">◷</span>
-            <h1>Tu primer temporizador.</h1>
-            <p>Crea un espacio personalizado para comenzar a registrar tu concentración.</p>
-            <button id="empty-add-timer" class="button button-primary" type="button">Crear temporizador</button>
+            <h1 data-i18n="empty.title">Your first timer.</h1>
+            <p data-i18n="empty.copy">Create a personalized space to start tracking your focus.</p>
+            <button id="empty-add-timer" class="button button-primary" type="button" data-i18n="empty.create">Create timer</button>
           </div>
 
           <div id="timer-workspace" hidden>
@@ -73,10 +73,10 @@
                   <span id="priority-chip" class="priority-chip">Prioridad media</span>
                   <span id="sync-status" class="sync-status">Sincronizado</span>
                 </div>
-                <h1 id="timer-heading">Estudio profundo</h1>
-                <p id="timer-subtitle">25 min de enfoque · 5 min de descanso</p>
+                <h1 id="timer-heading">Deep study</h1>
+                <p id="timer-subtitle">25 min focus · 5 min break</p>
               </div>
-              <button id="edit-active-timer" class="button button-quiet" type="button"><span aria-hidden="true">✎</span> Editar</button>
+              <button id="edit-active-timer" class="button button-quiet" type="button"><span aria-hidden="true">✎</span> <span data-i18n="timer.edit">Edit</span></button>
             </div>
 
             <article class="focus-panel">
@@ -88,10 +88,10 @@
                 <span id="timer-state" class="state-pill">LISTO</span>
               </div>
 
-              <div id="progress-ring" class="progress-ring" role="img" aria-label="Tiempo restante">
+              <div id="progress-ring" class="progress-ring" role="img" data-i18n-attr="aria-label:timer.remainingAria" aria-label="Time remaining">
                 <div class="progress-core">
                   <strong id="time-display">25:00</strong>
-                  <span id="time-caption">minutos disponibles</span>
+                  <span id="time-caption">minutes available</span>
                 </div>
               </div>
 
@@ -103,8 +103,8 @@
               <div class="timer-controls">
                 <button id="start-button" class="button button-primary button-large" type="button">Iniciar Focus <span aria-hidden="true">→</span></button>
                 <button id="pause-button" class="button button-secondary button-large" type="button" hidden>Pausar</button>
-                <button id="finish-button" class="button button-finish button-large" type="button" hidden>Terminar</button>
-                <button id="skip-break-button" class="button button-secondary button-large" type="button" hidden>Saltar descanso</button>
+                <button id="finish-button" class="button button-finish button-large" type="button" data-i18n="timer.finish" hidden>Finish</button>
+                <button id="skip-break-button" class="button button-secondary button-large" type="button" data-i18n="timer.skipBreak" hidden>Skip break</button>
               </div>
               <p id="timer-message" class="timer-message">El avance se guarda en la nube al iniciar, pausar o terminar.</p>
             </article>
@@ -114,31 +114,31 @@
         <section id="stats-view" class="workspace view" aria-labelledby="stats-heading" hidden>
           <div id="stats-empty" class="empty-state" hidden>
             <span class="empty-icon" aria-hidden="true">⌁</span>
-            <h1>Sin temporizador seleccionado.</h1>
-            <p>Selecciona o crea un temporizador para consultar sus estadísticas.</p>
+            <h1 data-i18n="stats.noneTitle">No timer selected.</h1>
+            <p data-i18n="stats.noneCopy">Select or create a timer to view its statistics.</p>
           </div>
           <div id="stats-workspace" hidden>
             <button id="sync-toggle" class="sync-banner" type="button" aria-pressed="false">
               <span class="sync-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8M18.5 2v4h-4M5.5 22v-4h4"/></svg></span>
-              <span class="sync-text"><strong>Sincronización</strong><small>Suma y comparación de todos tus cronómetros</small></span>
+              <span class="sync-text"><strong data-i18n="stats.syncTitle">Sync</strong><small data-i18n="stats.syncDesc">Sum and comparison of all your timers</small></span>
               <span class="sync-switch" aria-hidden="true"></span>
             </button>
             <div class="workspace-heading stats-title-row">
               <div>
-                <p id="stats-eyebrow" class="eyebrow">ESTADÍSTICAS INDIVIDUALES</p>
-                <h1 id="stats-heading">Estudio profundo</h1>
-                <p>Solo las sesiones Focus terminadas cuentan en este registro.</p>
+                <p id="stats-eyebrow" class="eyebrow">INDIVIDUAL STATISTICS</p>
+                <h1 id="stats-heading">Deep study</h1>
+                <p data-i18n="stats.onlyFocus">Only finished Focus sessions count in this record.</p>
               </div>
               <div class="stats-heading-actions">
-                <span id="stats-total-label" class="stats-total-label">0 minutos registrados</span>
-                <div class="stats-mode-toggle" role="group" aria-label="Vista de estadísticas">
+                <span id="stats-total-label" class="stats-total-label">0 minutes recorded</span>
+                <div class="stats-mode-toggle" role="group" data-i18n-attr="aria-label:stats.viewAria" aria-label="Statistics view">
                   <button class="stats-mode-button is-active" type="button" data-stats-mode="data">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
-                    <span>Resumen</span>
+                    <span data-i18n="stats.summary">Summary</span>
                   </button>
                   <button class="stats-mode-button" type="button" data-stats-mode="charts">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
-                    <span>Gráficos</span>
+                    <span data-i18n="stats.charts">Charts</span>
                   </button>
                 </div>
               </div>
@@ -146,14 +146,14 @@
 
             <div id="stats-data-view">
               <div class="stats-grid">
-                <button id="day-breakdown" class="metric-card metric-card-highlight metric-button" type="button"><span>HOY</span><strong id="stat-day"></strong><small>Focus completado <b>Ver detalle →</b></small></button>
-                <button id="yesterday-breakdown" class="metric-card metric-button" type="button"><span>AYER</span><strong id="stat-yesterday"></strong><small>Focus completado <b>Ver detalle →</b></small></button>
-                <button id="week-breakdown" class="metric-card metric-button" type="button"><span>SEMANA</span><strong id="stat-week"></strong><small>Últimos 7 días <b>Ver detalle →</b></small></button>
-                <button id="month-breakdown" class="metric-card metric-button" type="button"><span>MES</span><strong id="stat-month"></strong><small>Mes actual <b>Ver detalle →</b></small></button>
-                <button id="total-breakdown" class="metric-card metric-button" type="button"><span>TOTAL</span><strong id="stat-total"></strong><small>Desde la creación <b>Ver por año →</b></small></button>
+                <button id="day-breakdown" class="metric-card metric-card-highlight metric-button" type="button"><span data-i18n="stats.today">TODAY</span><strong id="stat-day"></strong><small><span data-i18n="stats.completed">Focus completed</span> <b data-i18n="stats.viewDetail">View details →</b></small></button>
+                <button id="yesterday-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.yesterday">YESTERDAY</span><strong id="stat-yesterday"></strong><small><span data-i18n="stats.completed">Focus completed</span> <b data-i18n="stats.viewDetail">View details →</b></small></button>
+                <button id="week-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.week">WEEK</span><strong id="stat-week"></strong><small><span data-i18n="stats.last7">Last 7 days</span> <b data-i18n="stats.viewDetail">View details →</b></small></button>
+                <button id="month-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.month">MONTH</span><strong id="stat-month"></strong><small><span data-i18n="stats.currentMonth">Current month</span> <b data-i18n="stats.viewDetail">View details →</b></small></button>
+                <button id="total-breakdown" class="metric-card metric-button" type="button"><span data-i18n="stats.total">TOTAL</span><strong id="stat-total"></strong><small><span data-i18n="stats.sinceCreation">Since creation</span> <b data-i18n="stats.viewYear">View by year →</b></small></button>
               </div>
               <section class="recent-sessions" aria-labelledby="recent-heading">
-                <div class="section-title"><h2 id="recent-heading">Sesiones recientes</h2><span id="recent-summary">0 sesiones</span></div>
+                <div class="section-title"><h2 id="recent-heading" data-i18n="stats.recent">Recent sessions</h2><span id="recent-summary">0 sesiones</span></div>
                 <div id="recent-list" class="recent-list"></div>
               </section>
             </div>
@@ -161,25 +161,25 @@
             <div id="stats-charts-view" class="stats-charts" hidden>
               <section class="chart-card">
                 <div class="chart-toolbar">
-                  <div class="chip-row" role="group" aria-label="Periodo">
-                    <button class="chip" type="button" data-chart-period="day">Hoy</button>
-                    <button class="chip" type="button" data-chart-period="yesterday">Ayer</button>
-                    <button class="chip" type="button" data-chart-period="week">Semana</button>
-                    <button class="chip" type="button" data-chart-period="month">Mes</button>
-                    <button class="chip" type="button" data-chart-period="year">Año</button>
+                  <div class="chip-row" role="group" data-i18n-attr="aria-label:chart.periodAria" aria-label="Period">
+                    <button class="chip" type="button" data-chart-period="day" data-i18n="chart.today">Today</button>
+                    <button class="chip" type="button" data-chart-period="yesterday" data-i18n="chart.yesterday">Yesterday</button>
+                    <button class="chip" type="button" data-chart-period="week" data-i18n="chart.week">Week</button>
+                    <button class="chip" type="button" data-chart-period="month" data-i18n="chart.month">Month</button>
+                    <button class="chip" type="button" data-chart-period="year" data-i18n="chart.year">Year</button>
                   </div>
-                  <div class="segmented" role="group" aria-label="Tipo de gráfico">
-                    <button class="seg-btn" type="button" data-chart-type="bar" aria-label="Barras" title="Barras"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></button>
-                    <button class="seg-btn" type="button" data-chart-type="line" aria-label="Línea" title="Línea"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-9"/></svg></button>
+                  <div class="segmented" role="group" data-i18n-attr="aria-label:chart.typeAria" aria-label="Chart type">
+                    <button class="seg-btn" type="button" data-chart-type="bar" data-i18n-attr="aria-label:chart.bars;title:chart.bars" aria-label="Bars" title="Bars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M12 20V4M19 20v-6"/></svg></button>
+                    <button class="seg-btn" type="button" data-chart-type="line" data-i18n-attr="aria-label:chart.line;title:chart.line" aria-label="Line" title="Line"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-9"/></svg></button>
                   </div>
                 </div>
-                <div id="chart-scope" class="chip-row chip-row-small" role="group" aria-label="Alcance del año" hidden>
-                  <button class="chip" type="button" data-chart-scope="year">Este año</button>
-                  <button class="chip" type="button" data-chart-scope="total">Total</button>
+                <div id="chart-scope" class="chip-row chip-row-small" role="group" data-i18n-attr="aria-label:chart.scopeAria" aria-label="Year scope" hidden>
+                  <button class="chip" type="button" data-chart-scope="year" data-i18n="chart.thisYear">This year</button>
+                  <button class="chip" type="button" data-chart-scope="total" data-i18n="chart.total">Total</button>
                 </div>
                 <div id="chart-legend" class="chart-legend" hidden></div>
-                <div class="chart-heading"><h2 id="chart-title">Semana</h2><strong id="chart-total">0 minutos</strong></div>
-                <div class="chart-wrap"><canvas id="stats-chart" aria-label="Gráfico de estudio"></canvas></div>
+                <div class="chart-heading"><h2 id="chart-title">Week</h2><strong id="chart-total">0 minutes</strong></div>
+                <div class="chart-wrap"><canvas id="stats-chart" data-i18n-attr="aria-label:chart.canvasAria" aria-label="Study chart"></canvas></div>
               </section>
             </div>
           </div>
@@ -204,17 +204,17 @@
 
           <div class="meat-panel">
             <div>
-              <p class="eyebrow">DESPENSA</p>
-              <strong id="meat-count" class="meat-count">0 trozos 🥩</strong>
+              <p class="eyebrow" data-i18n="pet.pantry">PANTRY</p>
+              <strong id="meat-count" class="meat-count">0 chunks 🥩</strong>
               <small id="meat-hint">Cada hora neta de Focus da 1 trozo.</small>
             </div>
             <div class="meat-actions">
-              <button id="feed-one" class="button button-secondary" type="button">Dar 1 trozo</button>
-              <button id="feed-all" class="button button-primary" type="button">Lanzar todo</button>
+              <button id="feed-one" class="button button-secondary" type="button" data-i18n="pet.feedOne">Give 1 chunk</button>
+              <button id="feed-all" class="button button-primary" type="button" data-i18n="pet.feedAll">Throw all</button>
             </div>
           </div>
 
-          <p class="eyebrow levels-title">REQUISITOS DE EVOLUCIÓN</p>
+          <p class="eyebrow levels-title" data-i18n="pet.requirements">EVOLUTION REQUIREMENTS</p>
           <div id="pet-levels" class="pet-levels-simple"></div>
         </section>
       </main>
@@ -222,54 +222,55 @@
 
     <dialog id="timer-modal" class="modal">
       <form id="timer-form" class="modal-card" method="dialog">
-        <div class="modal-heading"><div><p id="editor-eyebrow" class="eyebrow">NUEVO TEMPORIZADOR</p><h2 id="editor-title">Crea un espacio</h2></div><button class="modal-close" type="button" data-close="timer-modal" aria-label="Cerrar">×</button></div>
-        <label for="timer-name">Nombre</label>
-        <input id="timer-name" name="name" type="text" maxlength="48" placeholder="Ej. Estudio profundo" required />
+        <div class="modal-heading"><div><p id="editor-eyebrow" class="eyebrow">NEW TIMER</p><h2 id="editor-title">Create a space</h2></div><button class="modal-close" type="button" data-close="timer-modal" data-i18n-attr="aria-label:common.close" aria-label="Close">×</button></div>
+        <label for="timer-name" data-i18n="editor.name">Name</label>
+        <input id="timer-name" name="name" type="text" maxlength="48" data-i18n-attr="placeholder:editor.namePh" placeholder="E.g. Deep study" required />
         <div class="field-grid">
           <div><label for="focus-minutes">Focus (min)</label><input id="focus-minutes" name="focusMinutes" type="number" min="1" max="240" step="1" value="25" required /></div>
           <div><label for="break-minutes">Break (min)</label><input id="break-minutes" name="breakMinutes" type="number" min="1" max="120" step="1" value="5" required /></div>
         </div>
-        <label for="timer-priority">Prioridad</label>
-        <select id="timer-priority" name="priority"><option value="high">Alta</option><option value="medium" selected>Media</option><option value="low">Baja</option></select>
-        <label>Color y etiquetas <small class="label-hint">(hasta 3, mismo color)</small></label>
-        <div id="timer-colors" class="color-picker" role="group" aria-label="Color del cronómetro"></div>
-        <div class="tag-editor"><div id="tag-chips" class="tag-chips"></div><input id="tag-input" type="text" maxlength="16" placeholder="Escribe una etiqueta y presiona Enter" autocomplete="off" enterkeyhint="done" /></div>
+        <label for="timer-priority" data-i18n="editor.priority">Priority</label>
+        <select id="timer-priority" name="priority"><option value="high" data-i18n="priority.high">High</option><option value="medium" selected data-i18n="priority.medium">Medium</option><option value="low" data-i18n="priority.low">Low</option></select>
+        <label><span data-i18n="editor.colorTags">Color and tags</span> <small class="label-hint" data-i18n="editor.colorHint">(up to 3, same color)</small></label>
+        <div id="timer-colors" class="color-picker" role="group" data-i18n-attr="aria-label:editor.colorAria" aria-label="Timer color"></div>
+        <div class="tag-editor"><div id="tag-chips" class="tag-chips"></div><input id="tag-input" type="text" maxlength="16" data-i18n-attr="placeholder:editor.tagPh" placeholder="Type a tag and press Enter" autocomplete="off" enterkeyhint="done" /></div>
         <p id="timer-form-message" class="form-message" role="alert" hidden></p>
-        <div class="modal-actions"><button id="delete-timer" class="button button-danger" type="button" hidden>Eliminar</button><span></span><button class="button button-secondary" type="button" data-close="timer-modal">Cancelar</button><button id="save-timer" class="button button-primary" type="submit">Guardar</button></div>
+        <div class="modal-actions"><button id="delete-timer" class="button button-danger" type="button" data-i18n="editor.delete" hidden>Delete</button><span></span><button class="button button-secondary" type="button" data-close="timer-modal" data-i18n="editor.cancel">Cancel</button><button id="save-timer" class="button button-primary" type="submit" data-i18n="editor.save">Save</button></div>
       </form>
     </dialog>
 
     <dialog id="settings-modal" class="modal">
       <section class="modal-card settings-card" aria-labelledby="settings-title">
-        <div class="modal-heading"><div><p class="eyebrow">PREFERENCIAS</p><h2 id="settings-title">Ajustes</h2></div><button class="modal-close" type="button" data-close="settings-modal" aria-label="Cerrar">×</button></div>
-        <div class="setting-row"><div><strong>Modo oscuro</strong><span>Usa el estilo azul marino oscuro.</span></div><label class="switch"><input id="dark-mode-toggle" type="checkbox" /><span></span></label></div>
-        <div class="setting-row volume-row"><div><strong>Volumen de alarma</strong><span id="volume-label">70%</span></div><input id="volume-slider" type="range" min="0" max="100" value="70" aria-label="Volumen de alarma" /></div>
-        <div class="notification-card"><div><strong>Notificaciones</strong><p id="notification-status">Activa las notificaciones para recibir avisos cuando la pestaña esté en segundo plano.</p></div><button id="notifications-button" class="button button-secondary" type="button">Activar</button></div>
-        <button id="logout-button" class="logout-link" type="button">Cerrar sesión de Google</button>
+        <div class="modal-heading"><div><p class="eyebrow" data-i18n="settings.eyebrow">PREFERENCES</p><h2 id="settings-title" data-i18n="settings.title">Settings</h2></div><button class="modal-close" type="button" data-close="settings-modal" data-i18n-attr="aria-label:common.close" aria-label="Close">×</button></div>
+        <div class="setting-row"><div><strong data-i18n="settings.language">Language</strong><span data-i18n="settings.languageDesc">Choose the app language.</span></div><select id="language-select" class="language-select" data-i18n-attr="aria-label:settings.language" aria-label="Language"><option value="en">English</option><option value="es">Español</option></select></div>
+        <div class="setting-row"><div><strong data-i18n="settings.dark">Dark mode</strong><span data-i18n="settings.darkDesc">Use the dark navy style.</span></div><label class="switch"><input id="dark-mode-toggle" type="checkbox" /><span></span></label></div>
+        <div class="setting-row volume-row"><div><strong data-i18n="settings.volume">Alarm volume</strong><span id="volume-label">70%</span></div><input id="volume-slider" type="range" min="0" max="100" value="70" data-i18n-attr="aria-label:settings.volume" aria-label="Alarm volume" /></div>
+        <div class="notification-card"><div><strong data-i18n="settings.notifications">Notifications</strong><p id="notification-status">Enable notifications to get alerts when the tab is in the background.</p></div><button id="notifications-button" class="button button-secondary" type="button" data-i18n="settings.enable">Enable</button></div>
+        <button id="logout-button" class="logout-link" type="button" data-i18n="settings.logout">Sign out of Google</button>
       </section>
     </dialog>
 
     <dialog id="breakdown-modal" class="modal">
       <section class="modal-card breakdown-card" aria-labelledby="breakdown-title">
-        <div class="modal-heading"><div><p id="breakdown-eyebrow" class="eyebrow">DESGLOSE</p><h2 id="breakdown-title">Estadísticas</h2></div><button class="modal-close" type="button" data-close="breakdown-modal" aria-label="Cerrar">×</button></div>
+        <div class="modal-heading"><div><p id="breakdown-eyebrow" class="eyebrow">BREAKDOWN</p><h2 id="breakdown-title">Statistics</h2></div><button class="modal-close" type="button" data-close="breakdown-modal" data-i18n-attr="aria-label:common.close" aria-label="Close">×</button></div>
         <div id="breakdown-list" class="breakdown-list"></div>
       </section>
     </dialog>
 
-    <!-- NUEVO: Modal de Subida de Nivel -->
+    <!-- Level-up modal -->
     <dialog id="levelup-modal" class="modal">
       <section class="modal-card levelup-card">
         <div class="levelup-header">
-          <p class="eyebrow">¡EVOLUCIÓN DESBLOQUEADA!</p>
-          <h2 id="levelup-title">Subiste de nivel</h2>
+          <p class="eyebrow" data-i18n="level.unlocked">EVOLUTION UNLOCKED!</p>
+          <h2 id="levelup-title">You leveled up</h2>
         </div>
         <div id="levelup-image" class="levelup-image-container"></div>
-        <p id="levelup-desc" class="levelup-desc">¡Sigue manteniendo el enfoque para descubrir más formas!</p>
-        <button class="button button-primary button-large modal-close" type="button" data-close="levelup-modal" style="width: 100%;">¡Genial!</button>
+        <p id="levelup-desc" class="levelup-desc">Keep your focus to discover more forms!</p>
+        <button class="button button-primary button-large modal-close" type="button" data-close="levelup-modal" style="width: 100%;" data-i18n="level.great">Great!</button>
       </section>
     </dialog>
 
-    <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-icon" aria-hidden="true">✓</span><p id="toast-message"></p><button id="toast-close" type="button" aria-label="Cerrar aviso">×</button></div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden><span id="toast-icon" aria-hidden="true">✓</span><p id="toast-message"></p><button id="toast-close" type="button" data-i18n-attr="aria-label:toast.close" aria-label="Close notice">×</button></div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <script type="module" src="app.js"></script>
