@@ -1,4 +1,4 @@
-/* Configuración central - Mundo Híbrido, Ecosistema Expandido y Bestiario Visual - Beta 4.2 */
+/* Configuración central - Mundo Híbrido, Ecosistema Expandido y Bestiario Visual - Beta 4.4 (Fase 0) */
 
 export const SAVE_VERSION = 3;
 export const WORLD = { w: 16000, h: 8000 };
@@ -25,24 +25,27 @@ export const LEVELS = [
 
 export const SHARK_COLORS = ["#f5e6c8", "#7dd3fc", "#38bdf8", "#0ea5e9", "#0284c7", "#2563eb", "#4f46e5", "#64748b", "#7c3aed", "#1e293b"];
 
-export const ZONES = [
-  { n: ["Coast", "Costa"], x: 0, y: 0, w: 3000, h: 2000, min: 0, c: ["#8fe3ee", "#2a8fb0"], d: "weed", m: 130 },
-  { n: ["Coral Reef", "Arrecife de coral"], x: 3000, y: 0, w: 4000, h: 3000, min: 1, c: ["#59cfe0", "#1b7aa8"], d: "coral", m: 147 },
-  { n: ["Open Sea", "Mar abierto"], x: 7000, y: 0, w: 9000, h: 4000, min: 4, c: ["#3a9bd8", "#0f4c86"], d: "weed", m: 110, gate: "cur" },
-  { n: ["Shipwreck Graveyard", "Cementerio de naufragios"], x: 1000, y: 3000, w: 5000, h: 3000, min: 5, c: ["#2a6f9e", "#0c3558"], d: "hull", m: 98 },
-  { n: ["Abyss", "Abismo"], x: 0, y: 6000, w: 9000, h: 2000, min: 7, c: ["#0f2038", "#010308"], d: "glow", m: 65, dark: 0.85, gate: "deep" },
-  { n: ["Ancient Ruins", "Ruinas antiguas"], x: 9000, y: 4000, w: 4000, h: 2500, min: 8, c: ["#174860", "#051824"], d: "column", m: 87, gate: "seal" },
-  { n: ["Atlantis", "Atlantis"], x: 10000, y: 6500, w: 6000, h: 1500, min: 9, c: ["#147a8c", "#041a22"], d: "column", m: 78, dark: 0.3, gate: "seal" }
-];
+/*
+  MAPA (16000 x 8000) - Las 7 zonas forman una PARTICIÓN COMPLETA del mundo (sin huecos ni solapes):
 
-export const GATES = [
-  { x: 3000, y: 0, w: 50, h: 2000, min: 1, t: "egg" },                 
-  { x: 0, y: 2000, w: 3000, h: 50, min: 1, t: "egg" },                 
-  { x: 7000, y: 0, w: 60, h: 3000, min: 3, t: "cur" },                 
-  { x: 0, y: 3000, w: 6000, h: 50, min: 5, t: "deep" },                
-  { x: 0, y: 6000, w: 16000, h: 80, min: 7, t: "deep" },               
-  { x: 9000, y: 4000, w: 60, h: 2500, min: 8, t: "seal" },             
-  { x: 10000, y: 6500, w: 16000, h: 50, min: 9, t: "atlantis_seal" }   
+      x:   0 ........ 3000 ........ 7000 ............................ 16000
+  y:0      [ Costa  ][ Arrecife ][            Mar abierto             ]
+     4000  [               Cementerio de naufragios ][     Ruinas      ]  (x 0-9000 | 9000-16000)
+     6000  [                   Abismo               ][                 ]
+     6500                                            [    Atlantis     ]
+     8000
+
+  Una zona con `min` mayor que el nivel del jugador es INFRANQUEABLE (el motor bloquea por zona),
+  así que ya no existen "puertas" sueltas que se puedan rodear. `gate` = tipo de mensaje a mostrar.
+*/
+export const ZONES = [
+  { n: ["Coast", "Costa"], x: 0, y: 0, w: 3000, h: 4000, min: 0, c: ["#8fe3ee", "#2a8fb0"], d: "weed", m: 130 },
+  { n: ["Coral Reef", "Arrecife de coral"], x: 3000, y: 0, w: 4000, h: 4000, min: 1, c: ["#59cfe0", "#1b7aa8"], d: "coral", m: 147, gate: "egg" },
+  { n: ["Open Sea", "Mar abierto"], x: 7000, y: 0, w: 9000, h: 4000, min: 4, c: ["#3a9bd8", "#0f4c86"], d: "weed", m: 110, gate: "cur" },
+  { n: ["Shipwreck Graveyard", "Cementerio de naufragios"], x: 0, y: 4000, w: 9000, h: 2000, min: 5, c: ["#2a6f9e", "#0c3558"], d: "hull", m: 98, gate: "deep" },
+  { n: ["Abyss", "Abismo"], x: 0, y: 6000, w: 9000, h: 2000, min: 7, c: ["#0f2038", "#010308"], d: "glow", m: 65, dark: 0.85, gate: "deep" },
+  { n: ["Ancient Ruins", "Ruinas antiguas"], x: 9000, y: 4000, w: 7000, h: 2500, min: 8, c: ["#174860", "#051824"], d: "column", m: 87, gate: "seal" },
+  { n: ["Atlantis", "Atlantis"], x: 9000, y: 6500, w: 7000, h: 1500, min: 9, c: ["#147a8c", "#041a22"], d: "column", m: 78, dark: 0.3, gate: "atlantis_seal" }
 ];
 
 export const POIS = [
@@ -84,6 +87,6 @@ export const CREATURES = [
 ];
 
 export const TEXT = {
-  en: { back: "  BACK", lvl: "Level", bp: "Break Points", big: "TOO BIG", disc: "NEW DISCOVERY", died: "YOU WERE DEVOURED", egg: "Hatch first to swim farther", cur: "CURRENT TOO STRONG", deep: "WATER PRESSURE TOO HIGH", seal: "SEALED BY ANCIENT POWER", small: "TUNNEL TOO NARROW", door: "NEEDS MORE STRENGTH", atlantis_seal: "ONLY THE APEX PREDATOR MAY ENTER", treasure: "TREASURE", hint: "Move: WASD   Bite: Space   Dash: Shift", diet: "HUNTING GUIDE (EDIBLE PREY):" },
-  es: { back: "  VOLVER", lvl: "Nivel", bp: "Break Points", big: "DEMASIADO GRANDE", disc: "NUEVO DESCUBRIMIENTO", died: "TE HAN DEVORADO", egg: "Eclosiona primero para nadar más lejos", cur: "CORRIENTE DEMASIADO FUERTE", deep: "PRESIÓN DEMASIADO ALTA", seal: "SELLADO POR UN PODER ANTIGUO", small: "TÚNEL DEMASIADO ESTRECHO", door: "REQUIERE MÁS FUERZA", atlantis_seal: "SÓLO EL DEPREDADOR ALFA PUEDE ENTRAR", treasure: "TESORO", hint: "Mover: WASD   Morder: Espacio   Dash: Shift", diet: "GUÍA DE CAZA (PRESAS COMESTIBLES):" }
+  en: { back: "  BACK", lvl: "Level", bp: "Break Points", big: "TOO BIG", disc: "NEW DISCOVERY", died: "YOU WERE DEVOURED", egg: "Hatch first to swim farther", cur: "CURRENT TOO STRONG", deep: "WATER PRESSURE TOO HIGH", seal: "SEALED BY ANCIENT POWER", small: "TUNNEL TOO NARROW", door: "NEEDS MORE STRENGTH", atlantis_seal: "ONLY THE APEX PREDATOR MAY ENTER", treasure: "TREASURE", hint: "Move: WASD   Bite: Space   Dash: Shift", diet: "HUNTING GUIDE (EDIBLE PREY):", start: "Tap or press any key to start hunting" },
+  es: { back: "  VOLVER", lvl: "Nivel", bp: "Break Points", big: "DEMASIADO GRANDE", disc: "NUEVO DESCUBRIMIENTO", died: "TE HAN DEVORADO", egg: "Eclosiona primero para nadar más lejos", cur: "CORRIENTE DEMASIADO FUERTE", deep: "PRESIÓN DEMASIADO ALTA", seal: "SELLADO POR UN PODER ANTIGUO", small: "TÚNEL DEMASIADO ESTRECHO", door: "REQUIERE MÁS FUERZA", atlantis_seal: "SÓLO EL DEPREDADOR ALFA PUEDE ENTRAR", treasure: "TESORO", hint: "Mover: WASD   Morder: Espacio   Dash: Shift", diet: "GUÍA DE CAZA (PRESAS COMESTIBLES):", start: "Toca la pantalla o pulsa una tecla para comenzar a cazar" }
 };

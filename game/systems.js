@@ -1,49 +1,90 @@
-/* Sistemas del minijuego (Beta 4.2) - Entrada, Audio, Generación y Comportamiento */
+/* Sistemas del minijuego (Beta 4.4 - Fase 0) - Entrada, Audio, Generación y Comportamiento */
 import { ZONES, WORLD } from "./data.js";
 
 // 1. GESTIÓN DE ENTRADA (Teclado y Joystick Táctil)
-export function createInput(canvas, joy, biteBtn) {
+// `signal` (AbortSignal) permite soltar TODOS los listeners de golpe al cerrar la partida.
+export function createInput(canvas, joy, biteBtn, signal) {
+  const opts = signal ? { signal } : undefined;
   const keys = {};
-  let biting = false;
-  let dashing = false;
-  let joyActive = false;
-  let joyVec = { x: 0, y: 0 };
+  const JOY_DEADZONE = 0.12;
+  const BLOCKED_KEYS = new Set(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
+  let keyBite = false;      // Espacio mantenido
+  let btnBite = false;      // botón táctil mantenido
+  let biteQueued = false;   // pulsación breve (aunque se suelte antes del siguiente frame)
+  let joyId = null;         // pointerId que controla el joystick
+  let biteId = null;        // pointerId que controla el botón de morder
+  const joyVec = { x: 0, y: 0 };
+
+  const clearAll = () => {
+    for (const k in keys) keys[k] = false;
+    keyBite = false; btnBite = false; biteQueued = false;
+    joyId = null; biteId = null; joyVec.x = 0; joyVec.y = 0;
+  };
 
   const onKeyDown = (e) => {
+    if (BLOCKED_KEYS.has(e.code)) e.preventDefault(); // evita scroll y que Espacio active el botón enfocado
     keys[e.code] = true;
-    if (e.code === "Space") biting = true;
-    if (e.code === "ShiftLeft" || e.code === "ShiftRight") dashing = true;
+    if (e.code === "Space") { keyBite = true; if (!e.repeat) biteQueued = true; }
   };
 
   const onKeyUp = (e) => {
+    if (BLOCKED_KEYS.has(e.code)) e.preventDefault();
     keys[e.code] = false;
-    if (e.code === "ShiftLeft" || e.code === "ShiftRight") dashing = false;
+    if (e.code === "Space") keyBite = false;
   };
 
-  window.addEventListener("keydown", onKeyDown);
-  window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("keydown", onKeyDown, opts);
+  window.addEventListener("keyup", onKeyUp, opts);
+  window.addEventListener("blur", clearAll, opts);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) clearAll(); }, opts);
 
+  // Botón de morder: su propio pointerId, independiente del joystick (se puede mover y morder a la vez)
   if (biteBtn) {
-    biteBtn.addEventListener("pointerdown", () => { biting = true; });
+    biteBtn.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (biteId !== null) return;
+      biteId = e.pointerId;
+      try { biteBtn.setPointerCapture(e.pointerId); } catch (_) {}
+      btnBite = true; biteQueued = true;
+    }, opts);
+    const endBite = (e) => {
+      if (e.pointerId !== biteId) return;
+      biteId = null; btnBite = false;
+    };
+    biteBtn.addEventListener("pointerup", endBite, opts);
+    biteBtn.addEventListener("pointercancel", endBite, opts);
+    biteBtn.addEventListener("lostpointercapture", endBite, opts);
   }
 
+  // Joystick: captura el puntero, así levantar el otro dedo no lo suelta
   if (joy) {
-    const onJoyMove = (e) => {
+    const updateJoy = (e) => {
       const rect = joy.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
       const cy = rect.top + rect.height / 2;
-      const dx = (e.clientX - cx) / (rect.width / 2);
-      const dy = (e.clientY - cy) / (rect.height / 2);
-      const len = Math.hypot(dx, dy);
-      if (len > 0) {
-        joyVec.x = dx / (len > 1 ? len : 1);
-        joyVec.y = dy / (len > 1 ? len : 1);
-      }
+      let x = (e.clientX - cx) / (rect.width / 2);
+      let y = (e.clientY - cy) / (rect.height / 2);
+      const len = Math.hypot(x, y);
+      if (len > 1) { x /= len; y /= len; }
+      if (Math.hypot(x, y) < JOY_DEADZONE) { x = 0; y = 0; }
+      joyVec.x = x; joyVec.y = y;
     };
-
-    joy.addEventListener("pointerdown", (e) => { joyActive = true; onJoyMove(e); });
-    window.addEventListener("pointermove", (e) => { if (joyActive) onJoyMove(e); });
-    window.addEventListener("pointerup", () => { joyActive = false; joyVec.x = 0; joyVec.y = 0; });
+    joy.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      if (joyId !== null) return;
+      joyId = e.pointerId;
+      try { joy.setPointerCapture(e.pointerId); } catch (_) {}
+      updateJoy(e);
+    }, opts);
+    joy.addEventListener("pointermove", (e) => { if (e.pointerId === joyId) updateJoy(e); }, opts);
+    const endJoy = (e) => {
+      if (e.pointerId !== joyId) return;
+      joyId = null; joyVec.x = 0; joyVec.y = 0;
+    };
+    joy.addEventListener("pointerup", endJoy, opts);
+    joy.addEventListener("pointercancel", endJoy, opts);
+    joy.addEventListener("lostpointercapture", endJoy, opts);
   }
 
   return {
@@ -64,16 +105,16 @@ export function createInput(canvas, joy, biteBtn) {
       return { x, y };
     },
     dash() {
-      return dashing || keys["KeyZ"] || false;
+      return Boolean(keys["ShiftLeft"] || keys["ShiftRight"] || keys["KeyZ"]);
     },
+    // true mientras se mantiene morder, o si hubo una pulsación breve desde el último frame
     takeBite() {
-      const b = biting;
-      biting = false;
+      const b = biteQueued || keyBite || btnBite;
+      biteQueued = false;
       return b;
     },
     destroy() {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
+      clearAll(); // los listeners los suelta el AbortController de la partida
     }
   };
 }
@@ -81,13 +122,15 @@ export function createInput(canvas, joy, biteBtn) {
 // 2. GESTIÓN DE AUDIO PROCEDURAL Y AMBIENTE
 export function createAudio(volumeGetter) {
   let ctx = null;
+  let closed = false; // tras stop() no se vuelve a crear el contexto
 
   const getCtx = () => {
+    if (closed) return null;
     if (!ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (AudioCtx) ctx = new AudioCtx();
     }
-    if (ctx && ctx.state === "suspended") ctx.resume();
+    if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
     return ctx;
   };
 
@@ -114,6 +157,8 @@ export function createAudio(volumeGetter) {
   };
 
   return {
+    // Llamar dentro del gesto del usuario (al abrir el juego) para que el navegador permita el audio
+    unlock() { getCtx(); },
     sfx: {
       swim: () => playTone(120, "sine", 0.08, 0.4),
       bite: () => { playTone(240, "sawtooth", 0.12, 0.8); setTimeout(() => playTone(180, "sawtooth", 0.1, 0.8), 60); },
@@ -124,6 +169,7 @@ export function createAudio(volumeGetter) {
     },
     ambience(zoneIndex) {},
     stop() {
+      closed = true;
       if (ctx) ctx.close().catch(() => {});
       ctx = null;
     }
@@ -142,7 +188,8 @@ export function spawn(def, zone, rnd) {
     x, y,
     hx: x, hy: y,
     a: rnd() * 6.3,
-    t: rnd() * 3,
+    t: rnd() * 3,   // temporizador de IA
+    ph: rnd() * 6.3, // fase visual (separada de la IA para que no haya saltos al dibujar)
     hit: 0,
     dead: 0
   };
@@ -201,10 +248,16 @@ export function updateCreature(c, dt, p, power, rnd) {
 
   const z = ZONES[c.zone];
   if (z) {
-     c.x = Math.min(z.x + z.w - 30, Math.max(z.x + 30, c.x));
-     c.y = Math.min(z.y + z.h - 30, Math.max(z.y + 30, c.y));
+    const nx = Math.min(z.x + z.w - 30, Math.max(z.x + 30, c.x));
+    const ny = Math.min(z.y + z.h - 30, Math.max(z.y + 30, c.y));
+    if (nx !== c.x || ny !== c.y) {
+      // Al tocar el borde de su zona rebota hacia el centro (antes se quedaban pegadas a la pared)
+      c.x = nx; c.y = ny;
+      c.a = Math.atan2(z.y + z.h / 2 - c.y, z.x + z.w / 2 - c.x) + (rnd() - 0.5) * 0.9;
+      c.t = 0.8 + rnd() * 1.5;
+    }
   } else {
-     c.y = Math.min(WORLD.h - 30, Math.max(30, c.y));
+    c.y = Math.min(WORLD.h - 30, Math.max(30, c.y));
   }
 
   c.hit = Math.max(0, c.hit - dt);
